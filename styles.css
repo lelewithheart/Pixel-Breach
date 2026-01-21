@@ -1,0 +1,222 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Courier New', monospace;
+    background: #1a1a1a;
+    color: #fff;
+    overflow: hidden;
+}
+
+#game-container {
+    display: flex;
+    height: 100vh;
+}
+
+#left-panel {
+    width: 200px;
+    background: #2a2a2a;
+    padding: 10px;
+    border-right: 2px solid #444;
+    overflow-y: auto;
+}
+
+#center-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+#right-panel {
+    width: 200px;
+    background: #2a2a2a;
+    padding: 10px;
+    border-left: 2px solid #444;
+    overflow-y: auto;
+}
+
+canvas {
+    border: 2px solid #444;
+    background: #000;
+}
+
+.panel-section {
+    margin-bottom: 15px;
+    padding: 8px;
+    background: #333;
+    border: 1px solid #555;
+}
+
+.panel-section h3 {
+    font-size: 12px;
+    margin-bottom: 8px;
+    color: #0f0;
+    border-bottom: 1px solid #555;
+    padding-bottom: 4px;
+}
+
+.stat-line {
+    font-size: 11px;
+    margin: 3px 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.stat-bar {
+    width: 100%;
+    height: 12px;
+    background: #222;
+    border: 1px solid #555;
+    margin: 2px 0;
+}
+
+.stat-bar-fill {
+    height: 100%;
+    transition: width 0.3s;
+}
+
+.health-bar { background: #f00; }
+.armor-bar { background: #00f; }
+.stamina-bar { background: #ff0; }
+
+button {
+    width: 100%;
+    padding: 8px;
+    margin: 5px 0;
+    background: #444;
+    color: #fff;
+    border: 1px solid #666;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+}
+
+button:hover {
+    background: #555;
+}
+
+button:active {
+    background: #333;
+}
+
+button.active {
+    background: #0a0;
+    border-color: #0f0;
+}
+
+.weapon-slot {
+    padding: 5px;
+    margin: 3px 0;
+    background: #222;
+    border: 1px solid #555;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.weapon-slot:hover {
+    background: #333;
+}
+
+.weapon-slot.active {
+    border-color: #0f0;
+    background: #2a4a2a;
+}
+
+#minimap {
+    width: 180px;
+    height: 180px;
+    background: #000;
+    border: 2px solid #555;
+    margin: 10px 0;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: #2a2a2a;
+    padding: 20px;
+    border: 2px solid #555;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-content h2 {
+    color: #0f0;
+    margin-bottom: 15px;
+}
+
+.loadout-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.loadout-option {
+    padding: 10px;
+    background: #333;
+    border: 1px solid #555;
+    cursor: pointer;
+}
+
+.loadout-option:hover {
+    background: #444;
+}
+
+.loadout-option.selected {
+    border-color: #0f0;
+    background: #2a4a2a;
+}
+
+#controls-info {
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+#level-editor {
+    display: none;
+}
+
+#level-editor.active {
+    display: block;
+}
+
+.editor-tools {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 5px;
+}
+
+.objective-item {
+    font-size: 10px;
+    padding: 3px;
+    margin: 2px 0;
+}
+
+.objective-complete {
+    color: #0f0;
+}
+
+.objective-incomplete {
+    color: #ff0;
+}
