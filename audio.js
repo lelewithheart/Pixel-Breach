@@ -9,7 +9,7 @@ const AudioSystem = {
     musicEnabled: true,
     sfxEnabled: true,
     masterVolume: 0.5,
-    musicVolume: 0.3,
+    musicVolume: 1.0,
     sfxVolume: 0.5,
     initialized: false,
 
@@ -21,7 +21,7 @@ const AudioSystem = {
 
             this.masterGain = this.context.createGain();
             this.masterGain.gain.value = this.masterVolume;
-            this.masterGain.connect(this.context.destinations);
+            this.masterGain.connect(this.context.destination);
 
             this.musicGain = this.context.createGain();
             this.musicGain.gain.value = this.musicVolume;
@@ -89,7 +89,7 @@ const AudioSystem = {
         const osc = this.context.createOscillator();
         const gain = this.context.createGain();
 
-        osc.type = thype;
+        osc.type = type;
         osc.frequency.value = frequency;
 
         osc.connect(gain);
@@ -353,7 +353,7 @@ const AudioSystem = {
         this.resume();
 
         this.playBeep(300, 0.15, "square");
-        setTimeout(() => this.playerBeep(200, 0.2, "square"), 150);
+        setTimeout(() => this.playBeep(200, 0.2, "square"), 150);
     },
 
     // === MUSIC SYSTEM ===
@@ -362,7 +362,7 @@ const AudioSystem = {
     musicTracks: {
         menu: {
             tempo: 120,
-            notes: [
+            melody: [
                 // Main theme - mysterious and tactical
                 { note: 'E4', duration: 0.5 },
                 { note: 'G4', duration: 0.25 },
@@ -394,7 +394,7 @@ const AudioSystem = {
         },
         gameplay: {
             tempo: 140,
-            notes: [
+            melody: [
                 // Action theme - tense and driving
                 { note: 'A3', duration: 0.25 },
                 { note: 'A3', duration: 0.25 },
@@ -436,7 +436,7 @@ const AudioSystem = {
     },
 
     playMusic(trackName) {
-        if (!this.sfxEnabled || !this.initialized) return;
+        if (!this.musicEnabled || !this.initialized) return;
         this.resume();
 
         this.stopMusic();
@@ -464,11 +464,11 @@ const AudioSystem = {
         let totalMelodyDuration = 0;
         let totalBassDuration = 0;
 
-        track.notes.forEach(noteData => {
+        track.melody.forEach(noteData => {
             if (noteData.note !== "rest") {
                 const freq = this.noteFrequencies[noteData.note];
                 if (freq) {
-                    this.scheduleMusicNote(freq, melodyTime, noteData.duration * beatDuration, "square", 0.15);
+                    this.scheduleMusicNote(freq, melodyTime, noteData.duration * beatDuration, "square", 0.5);
                 }
             }
             melodyTime += noteData.duration * beatDuration;
@@ -479,7 +479,7 @@ const AudioSystem = {
             if (noteData.note !== "rest") {
                 const freq = this.noteFrequencies[noteData.note];
                 if (freq) {
-                    this.scheduleMusicNote(freq, bassTime, noteData.duration * beatDuration * 0.9, "triangle", 0.12);
+                    this.scheduleMusicNote(freq, bassTime, noteData.duration * beatDuration * 0.9, "triangle", 0.4);
                 }
             }
             bassTime += noteData.duration * beatDuration;

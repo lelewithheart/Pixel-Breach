@@ -156,6 +156,7 @@ function loadMission(missionId) {
     gameState.grenades = [];
     gameState.bullets = [];
     gameState.particles = [];
+    gameState.objectives.reachExtraction = false;
 
     // Create mission-specific layouts
     switch (missionId) {
@@ -283,6 +284,16 @@ function gameLoop() {
                 gameState.player.move(dx / magnitude, dy / magnitude);
             }
 
+            // Check if player reached extraction point
+            const playerGridX = Math.floor(gameState.player.x / TILE_SIZE);
+            const playerGridY = Math.floor(gameState.player.y / TILE_SIZE);
+            if (playerGridX >= 0 && playerGridX < GRID_WIDTH && playerGridY >= 0 && playerGridY < GRID_HEIGHT) {
+                if (gameState.grid[playerGridY][playerGridX] === 4 && !gameState.objectives.reachExtraction) {
+                    gameState.objectives.reachExtraction = true;
+                    checkObjectives();
+                }
+            }
+
             if (mouse.down && gameState.player.canFire) {
                 const weapon = gameState.player.weapons[gameState.player.currentWeapon];
                 if (weapon.auto) {
@@ -393,6 +404,7 @@ function drawMinimap() {
 function checkObjectives() {
     const allEnemiesDefeated = gameState.enemies.length === 0;
     const allHostagesRescued = gameState.civilians.every(c => c.rescued);
+    const reachedExtraction = gameState.objectives.reachExtraction;
 
     gameState.objectives.eliminateEnemies = allEnemiesDefeated;
     gameState.objectives.rescueHostages = allHostagesRescued;
@@ -405,15 +417,25 @@ function checkObjectives() {
         <div class="objective-item ${allHostagesRescued ? 'objective-complete' : 'objective-incomplete'}">
             ${allHostagesRescued ? '✓' : '•'} Rescue all hostages
         </div>
-        <div class="objective-item objective-incomplete">
-            • Reach extraction point
+        <div class="objective-item ${reachedExtraction ? 'objective-complete' : 'objective-incomplete'}">
+            ${reachedExtraction ? '✓' : '•'} Reach extraction point
         </div>
     `;
 
-    if (allEnemiesDefeated && allHostagesRescued) {
+    if (allEnemiesDefeated && allHostagesRescued && reachedExtraction) {
+        gameState.playing = false;
         AudioSystem.playVictory();
+        // Reset all keys to prevent stuck movement
+        for (let key in keys) {
+            keys[key] = false;
+        }
         setTimeout(() => {
             alert('MISSION SUCCESS!\n\nAll objectives completed!');
+            if (gameState.currentMission) {
+                loadMission(gameState.currentMission.id);
+            } else {
+                createDefaultLevel();
+            }
         }, VICTORY_DELAY_MS);
     }
 }
@@ -422,7 +444,16 @@ function checkObjectives() {
 function gameOver() {
     gameState.playing = false;
     AudioSystem.playGameOver();
+    // Reset all keys to prevent stuck movement
+    for (let key in keys) {
+        keys[key] = false;
+    }
     alert('MISSION FAILED\n\nYou have been eliminated.');
+    if (gameState.currentMission) {
+        loadMission(gameState.currentMission.id);
+    } else {
+        createDefaultLevel();
+    }
 }
 
 // Level Editor

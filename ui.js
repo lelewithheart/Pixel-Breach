@@ -44,6 +44,8 @@ function updateUI() {
 // Input event listeners
 document.addEventListener('keydown', (e) => {
     keys[e.key] = true;
+    keys[e.key.toLowerCase()] = true;
+    keys[e.key.toUpperCase()] = true;
 
     if (!gameState.playing || !gameState.player) return;
 
@@ -79,6 +81,16 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('keyup', (e) => {
     keys[e.key] = false;
+    keys[e.key.toLowerCase()] = false;
+    keys[e.key.toUpperCase()] = false;
+});
+
+// Reset all keys when window loses focus (prevents stuck keys)
+window.addEventListener('blur', () => {
+    for (let key in keys) {
+        keys[key] = false;
+    }
+    mouse.down = false;
 });
 
 // Canvas mouse events
@@ -115,6 +127,7 @@ document.getElementById('start-game').addEventListener('click', () => {
     gameState.playing = true;
     gameState.editorMode = false;
     document.getElementById('level-editor').classList.remove('active');
+    AudioSystem.init();
     AudioSystem.playMusic("gameplay");
 });
 
@@ -160,7 +173,11 @@ document.getElementById('toggle-editor').addEventListener('click', () => {
 document.getElementById('reset-game').addEventListener('click', () => {
     AudioSystem.playClick();
     gameState.playing = false;
-    createDefaultLevel();
+    if (gameState.currentMission) {
+        loadMission(gameState.currentMission.id);
+    } else {
+        createDefaultLevel();
+    }
 });
 
 // Loadout selection
