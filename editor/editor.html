@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Breach - Level Editor</title>
+    <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+    <div id="editor-container">
+        <div id="left-panel">
+            <header>
+                <h1>PIXEL BREACH</h1>
+                <p>Level Editor v1.0</p>
+            </header>
+
+            <div class="panel-section">
+                <h3>TOOLS</h3>
+                <div class="tool-grid">
+                    <button class="tool-btn active" data-tool="wall">
+                        <span class="icon">█</span>
+                        Wall
+                    </button>
+                    <button class="tool-btn" data-tool="floor">
+                        <span class="icon">▢</span>
+                        Floor
+                    </button>
+                    <button class="tool-btn" data-tool="cover">
+                        <span class="icon">▦</span>
+                        Cover
+                    </button>
+                    <button class="tool-btn" data-tool="door">
+                        <span class="icon">▯</span>
+                        Door
+                    </button>
+                    <button class="tool-btn" data-tool="lockeddoor">
+                        <span class="icon">🔒</span>
+                        Locked
+                    </button>
+                    <button class="tool-btn" data-tool="spawn">
+                        <span class="icon">◉</span>
+                        Spawn
+                    </button>
+                    <button class="tool-btn" data-tool="exit">
+                        <span class="icon">⬆</span>
+                        Exit
+                    </button>
+                    <button class="tool-btn" data-tool="enemy">
+                        <span class="icon">☠</span>
+                        Enemy
+                    </button>
+                    <button class="tool-btn" data-tool="heavyenemy">
+                        <span class="icon">⚔</span>
+                        Heavy
+                    </button>
+                    <button class="tool-btn" data-tool="hostage">
+                        <span class="icon">☺</span>
+                        Hostage
+                    </button>
+                    <button class="tool-btn" data-tool="erase">
+                        <span class="icon">✕</span>
+                        Erase
+                    </button>
+                    <button class="tool-btn" data-tool="roomtool">
+                        <span class="icon">⊞</span>
+                        Room
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>ROOM PAINTER</h3>
+                <p style="font-size: 10px; color: #888; margin-bottom: 10px;">
+                    Click to set corner 1, then click for corner 2 to create a room
+                </p>
+                <div class="actions-row">
+                    <button id="fill-room">Fill Room</button>
+                    <button id="outline-room">Outline Room</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>QUICK ACTIONS</h3>
+                <button id="clear-all">Clear All</button>
+                <button id="add-border">Add Border Walls</button>
+                <button id="undo">Undo (Ctrl+Z)</button>
+            </div>
+        </div>
+
+        <div id="canvas-panel">
+            <canvas id="editorCanvas" width="800" height="600"></canvas>
+            <div id="canvas-info">
+                <span id="cursor-pos">Position: (0, 0)</span> | 
+                <span id="current-tool">Tool: Wall</span> |
+                <span>Click to place, Right-click to erase</span>
+            </div>
+        </div>
+
+        <div id="right-panel">
+            <div class="tab-container">
+                <button class="tab-btn active" data-tab="map-info">Map Info</button>
+                <button class="tab-btn" data-tab="statistics">Stats</button>
+                <button class="tab-btn" data-tab="help">Help</button>
+            </div>
+
+            <div id="map-info" class="tab-content active">
+                <div class="panel-section">
+                    <h3>MAP DETAILS</h3>
+                    <label style="font-size: 11px;">Map Name:</label>
+                    <input type="text" id="map-name" placeholder="Enter map name..." value="Untitled Mission">
+                    
+                    <label style="font-size: 11px;">Description:</label>
+                    <textarea id="map-description" placeholder="Enter map description..."></textarea>
+                    
+                    <label style="font-size: 11px;">Author:</label>
+                    <input type="text" id="map-author" placeholder="Your name...">
+                    
+                    <label style="font-size: 11px;">Difficulty:</label>
+                    <select id="map-difficulty">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+
+                <div class="panel-section">
+                    <h3>FILE OPERATIONS</h3>
+                    <button id="export-map">Export Map (Download)</button>
+                    <input type="file" id="file-input" accept=".json">
+                    <button id="import-map">Import Map (Load File)</button>
+                    <button id="save-local">Save to Browser</button>
+                    <button id="load-local">Load from Browser</button>
+                </div>
+
+                <div class="panel-section">
+                    <h3>SUBMIT FOR REVIEW</h3>
+                    <div class="info-box">
+                        To submit your map for community review:<br><br>
+                        1. Export your map file<br>
+                        2. Upload to GitHub Issues or send via the community Discord<br>
+                        3. Include your map name and description<br>
+                        4. Wait for review and approval!
+                    </div>
+                </div>
+            </div>
+
+            <div id="statistics" class="tab-content">
+                <div class="panel-section">
+                    <h3>MAP STATISTICS</h3>
+                    <div class="stat-line">
+                        <span>Enemies:</span>
+                        <span id="stat-enemies">0</span>
+                    </div>
+                    <div class="stat-line">
+                        <span>Heavy Enemies:</span>
+                        <span id="stat-heavy">0</span>
+                    </div>
+                    <div class="stat-line">
+                        <span>Hostages:</span>
+                        <span id="stat-hostages">0</span>
+                    </div>
+                    <div class="stat-line">
+                        <span>Doors:</span>
+                        <span id="stat-doors">0</span>
+                    </div>
+                    <div class="stat-line">
+                        <span>Locked Doors:</span>
+                        <span id="stat-locked">0</span>
+                    </div>
+                    <div class="stat-line">
+                        <span>Exit Points:</span>
+                        <span id="stat-exits">0</span>
+                    </div>
+                    <div class="stat-line">
+                        <span>Spawn Points:</span>
+                        <span id="stat-spawns">0</span>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>VALIDATION</h3>
+                    <div id="validation-results">
+                        <div class="info-box">Click "Validate" to check your map</div>
+                    </div>
+                    <button id="validate-map">Validate Map</button>
+                </div>
+
+                <div class="panel-section">
+                    <h3>MINIMAP PREVIEW</h3>
+                    <div class="minimap-container">
+                        <canvas id="minimap" width="180" height="135"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div id="help" class="tab-content">
+                <div class="panel-section">
+                    <h3>LEGEND</h3>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #444;"></div>
+                        <span>Wall (blocks movement)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #222;"></div>
+                        <span>Floor (walkable)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #666;"></div>
+                        <span>Cover (provides protection)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #640;"></div>
+                        <span>Door (can be opened)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #820;"></div>
+                        <span>Locked Door (needs breach/lockpick)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #0f0;"></div>
+                        <span>Spawn Point (player start)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #00f;"></div>
+                        <span>Exit Point (extraction)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #f00;"></div>
+                        <span>Enemy (hostile)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #a00;"></div>
+                        <span>Heavy Enemy (tougher)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff0;"></div>
+                        <span>Hostage (rescue target)</span>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>CONTROLS</h3>
+                    <div style="font-size: 11px; line-height: 1.6;">
+                        <strong>Mouse:</strong><br>
+                        • Left Click - Place element<br>
+                        • Right Click - Erase<br>
+                        • Click & Drag - Paint tiles<br><br>
+                        <strong>Keyboard:</strong><br>
+                        • Ctrl+Z - Undo<br>
+                        • 1-9 - Quick select tool<br>
+                        • Delete - Clear all
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>TIPS</h3>
+                    <div style="font-size: 11px; line-height: 1.6;">
+                        • Every map needs at least one spawn point<br>
+                        • Every map needs at least one exit point<br>
+                        • Test your map balance with enemies<br>
+                        • Use rooms to organize your level<br>
+                        • Cover objects can be destroyed<br>
+                        • Heavy enemies have more health
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <button id="back-to-game" style="background: #060; border-color: #0a0;">
+                    Back to Game
+                </button>
+            </div>
+        </div>
+    </div>
+    <script src="editor.js"></script>
+</body>
+</html>

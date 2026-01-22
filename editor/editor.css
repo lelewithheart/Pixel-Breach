@@ -1,0 +1,248 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Courier New", monospace;
+    background: #1a1a1a;
+    color: #ffff;
+    overflow: hidden;
+}
+
+#editor-container {
+    display: flex;
+    height: 100vh;
+}
+
+#left-panel {
+    width: 250px;
+    background: #2a2a2a;
+    padding: 10px;
+    border-right: 2px solid #444;
+    overflow-y: auto;
+}
+
+#canvas-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #111;
+}
+
+#right-panel {
+    width: 300px;
+    background: #2a2a2a;
+    padding: 10px;
+    border-left: 2px solid #444;
+    overflow-y: auto;
+}
+
+canvas {
+    border: 2px solid #0f0;
+    background: #000;
+    cursor: crosshair;
+}
+
+.panel-selection {
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #333;
+    border: 1px solid #555;
+}
+
+.panel-section h3 {
+    font-size: 14px;
+    margin-bottom: 10px;
+    color: #0f0;
+    border-bottom: 1px solid #555;
+    padding-bottom: 5px;
+}
+
+button {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+    background: #444;
+    color: #fff;
+    border: 1px solid #666;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+button:hover {
+    background: #555;
+}
+
+button:active {
+    background: #333;
+}
+
+button.active {
+    background: #0a0;
+    border-color: #0f0;
+}
+
+.tool-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 5px;
+}
+
+.tool-btn {
+    padding: 8px 5px;
+    font-size: 11px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.tool-btn .icon {
+    font-size: 18px;
+    margin-bottom: 3px;
+}
+
+input[type="text"],
+textarea {
+    width: 100%;
+    padding: 8px;
+    margin: 5px 0;
+    background: #222;
+    color: #fff;
+    border: 1px solid #555;
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+select {
+    width: 100%;
+    padding: 8px;
+    margin: 5px 0;
+    background: #222;
+    color: #fff;
+    border: 1px solid #555;
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+}
+
+.stat-line {
+    font-size: 11px;
+    margin: 5px 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin: 5px 0;
+    font-size: 11px;
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    border: 1px solid #555;
+}
+
+.info-box {
+    padding: 10px;
+    background: #2a4a2a;
+    border: 1px solid #0f0;
+    font-size: 11px;
+    margin: 10px 0;
+    line-height: 1.5;
+}
+
+.warning-box {
+    padding: 10px;
+    background: #4a2a2a;
+    border: 1px solid #f00;
+    font-size: 11px;
+    margin: 10px 0;
+    line-height: 1.5;
+}
+
+#canvas-info {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #888;
+}
+
+.minimap-container {
+    text-align: center;
+}
+
+#minimap {
+    border: 1px solid #555;
+    background: #000;
+}
+
+header {
+    text-align: center;
+    padding: 10px;
+    background: #222;
+    border-bottom: 1px solid #555;
+}
+
+header h1 {
+    font-size: 20px;
+    color: #0f0;
+    margin-bottom: 5px;
+}
+
+header p {
+    font-size: 11px;
+    color: #888;
+}
+
+.tab-container {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 8px;
+    background: #333;
+    border: 1px solid #555;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.tab-btn.active {
+    background: #0a0;
+    border-color: #0f0;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+#file-input {
+    display: none;
+}
+
+.actions-row {
+    display: flex;
+    gap: 5px;
+}
+
+.actions-row button {
+    flex: 1;
+}
