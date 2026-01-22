@@ -5,7 +5,7 @@
 function loadCommunityMaps() {
     const savedLevel = localStorage.getItem('customLevel');
     const communityMaps = [];
-    
+
     if (savedLevel) {
         communityMaps.push({
             id: 'custom-1',
@@ -14,7 +14,7 @@ function loadCommunityMaps() {
             data: JSON.parse(savedLevel)
         });
     }
-    
+
     return communityMaps;
 }
 
@@ -27,7 +27,7 @@ function saveCommunityMap(mapData, mapName = 'Custom Level') {
         civilians: mapData.civilians,
         doors: mapData.doors
     };
-    
+
     const json = JSON.stringify(levelData);
     localStorage.setItem('customLevel', json);
     return true;
@@ -39,7 +39,7 @@ function loadCommunityMapData(mapId) {
     if (!json) {
         return null;
     }
-    
+
     return JSON.parse(json);
 }
 

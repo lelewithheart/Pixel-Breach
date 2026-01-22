@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pixel Breach - Tactical SWAT Shooter</title>
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div id="game-container">
         <div id="left-panel">
@@ -91,6 +93,24 @@
             <div class="panel-section">
                 <h3>MINIMAP</h3>
                 <canvas id="minimap" width="180" height="180"></canvas>
+            </div>
+
+            <div class="panel-selection">
+                <h3>AUDIO</h3>
+                <div class="audio-controls">
+                    <div class="stat-line">
+                        <span>SFX:</span>
+                        <button id="toggle-sfx" class="audio-btn active">ON</button>
+                    </div>
+                    <div class="stat-line">
+                        <span>Music:</span>
+                        <button id="toggle-music" class="audio-btn active">ON</button>
+                    </div>
+                    <div class="stat-line">
+                        <span>Volume:</span>
+                        <input type="range" id="master-volume" min="0" max="100" value="50" class="volume-slider">
+                    </div>
+                </div>
             </div>
 
             <div class="panel-section">
@@ -253,9 +273,12 @@
         <div class="modal-content" style="text-align: center;">
             <h2 style="margin-bottom: 20px;">LOCKPICK</h2>
             <p style="margin-bottom: 15px;">Press SPACE when the bar is in the green zone!</p>
-            <div id="lockpick-container" style="width: 400px; height: 50px; background: #222; border: 2px solid #555; position: relative; margin: 20px auto;">
-                <div id="lockpick-zone" style="position: absolute; height: 100%; width: 60px; background: #0a0; left: 170px;"></div>
-                <div id="lockpick-bar" style="position: absolute; height: 100%; width: 20px; background: #00f; left: 0;"></div>
+            <div id="lockpick-container"
+                style="width: 400px; height: 50px; background: #222; border: 2px solid #555; position: relative; margin: 20px auto;">
+                <div id="lockpick-zone"
+                    style="position: absolute; height: 100%; width: 60px; background: #0a0; left: 170px;"></div>
+                <div id="lockpick-bar"
+                    style="position: absolute; height: 100%; width: 20px; background: #00f; left: 0;"></div>
             </div>
             <div id="lockpick-message" style="margin-top: 15px; min-height: 20px; font-size: 14px;"></div>
             <button id="cancel-lockpick" style="margin-top: 20px;">CANCEL (Shoot Door Instead)</button>
@@ -267,7 +290,9 @@
     <script src="maps-official.js"></script>
     <script src="maps-community.js"></script>
     <script src="classes.js"></script>
+    <script src="audio.js"></script>
     <script src="game-logic.js"></script>
     <script src="ui.js"></script>
 </body>
+
 </html>

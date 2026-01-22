@@ -1,3 +1,5 @@
+const AudioSystem = require("./audio");
+
 class Player {
     constructor(x, y) {
         this.x = x;
@@ -117,6 +119,8 @@ class Player {
         this.canFire = false;
         setTimeout(() => this.canFire = true, weapon.fireRate);
 
+        AudioSystem.playGunshot(gamestate.loadout[this.currentWeapon]);
+
         const pellets = weapon.pellets || 1;
         for (let i = 0; i < pellets; i++) {
             const spread = (Math.random() - 0.5) * weapon.spread;
@@ -157,6 +161,7 @@ class Player {
         if (weapon.currentAmmo === weapon.magSize || weapon.reserveAmmo === 0) return;
 
         this.reloading = true;
+        AudioSystem.playReload();
         setTimeout(() => {
             const ammoNeeded = weapon.magSize - weapon.currentAmmo;
             const ammoToReload = Math.min(ammoNeeded, weapon.reserveAmmo);
@@ -174,6 +179,7 @@ class Player {
             damage -= armorAbsorb;
         }
         this.health -= damage;
+        AudioSystem.playHit();
 
         if (this.health <= 0) {
             this.health = 0;
@@ -190,6 +196,7 @@ class Player {
         switch (this.equipment.effect) {
             case "stun":
                 //Flashbang, make near enemies run around
+                AudioSystem.playFlashbang();
                 gameState.enemies.forEach(enemy => {
                     const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
                     if (dist < 150) {
@@ -207,6 +214,7 @@ class Player {
                 }
                 break;
             case "grenade":
+                AudioSystem.playBeep(300, 0.05, 'square');
                 gameState.grenades.push(new Grenade(this.x, this.y, this.angle));
                 break;
             case "doormine":
@@ -222,6 +230,7 @@ class Player {
                 });
                 if (nearestDoor && nearestDoor.locked) {
                     nearestDoor.unlock();
+                    AudioSystem.playBreach();
                     //SFX
                     for (let i = 0; i < 15; i++) {
                         gameState.particles.push(new Particle(
@@ -236,6 +245,7 @@ class Player {
                 break;
             case "breach":
                 //Breach wall/door in front of player
+                AudioSystem.playBreach();
                 const checkX = Math.floor((this.x + Math.cos(this.angle) * 40) / TILE_SIZE);
                 const checkY = Math.floor((this.y + Math.sin(this.angle) * 40) / TILE_SIZE);
                 if (checkX >= 0 && checkX < GRID_WIDTH && checkY >= 0 && checkY < GRID_HEIGHT) {
@@ -243,6 +253,7 @@ class Player {
                 }
                 break;
             case "heal":
+                AudioSystem.playPickup();
                 this.health = Math.min(this.maxHealth, this.health + 50);
                 break;
         }
@@ -256,6 +267,7 @@ class Player {
             if (dist < 40 && !civilian.rescued) {
                 civilian.rescued = true;
                 this.hostagesRescued++;
+                AudioSystem.playRescue();
                 checkObjectives();
             }
         });
@@ -268,8 +280,11 @@ class Player {
                     gameState.screen = "lockpick";
                     gameState.lockpickTarget = door;
                     gameState.playing = false;
+                    document.getElementById('lockpick-screen').classList.add('active');
+
                 } else {
                     door.toggle();
+                    AudioSystem.playDoor(door.open);
                 }
             }
         });
@@ -282,7 +297,7 @@ class Player {
 
         //Body
         ctx.fillStyle = "#00f";
-        ctx.fillRect(-this.size / 2, -this.size / 2, this.size.this.size);
+        ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
 
         //Direction Indicator
         ctx.fillStyle = "#0ff";
@@ -455,6 +470,7 @@ class Enemy {
             gameState.bullets.push(new Bullet(
                 this.x, this.y, bulletAngle, weapon.damage, "enemy"
             ));
+            AudioSystem.playGunshot("m1911")
         }
 
         for (let i = 0; i < 3; i++) {
@@ -487,7 +503,7 @@ class Enemy {
 
     hasLineOfSight(targetX, targetY) {
         const steps = 20;
-        const dx = (tagretX - this.x) / steps;
+        const dx = (targetX - this.x) / steps;
         const dy = (targetY - this.y) / steps;
 
         for (let i = 0; i < steps; i++) {
@@ -515,6 +531,7 @@ class Enemy {
 
     takeDamage(damage) {
         this.health -= damage;
+        AudioSystem.playHit(false);
         if (this.health <= 0) {
             this.die();
         }
@@ -525,6 +542,8 @@ class Enemy {
         if (index > -1) {
             gameState.enemies.splice(index, 1);
         }
+
+        AudioSystem.playEnemyDeath();
 
         for (let i = 0; i < 10; i++) {
             gameState.particles.push(new Particle(
@@ -723,6 +742,8 @@ class Grenade {
 
     explode() {
         this.exploded = true;
+
+        AudioSystem.playExplosion();
 
         //particles
         for (let i = 0; i < 30; i++) {
