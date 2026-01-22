@@ -1,5 +1,3 @@
-const AudioSystem = require("./audio");
-
 class Player {
     constructor(x, y) {
         this.x = x;
@@ -119,7 +117,7 @@ class Player {
         this.canFire = false;
         setTimeout(() => this.canFire = true, weapon.fireRate);
 
-        AudioSystem.playGunshot(gamestate.loadout[this.currentWeapon]);
+        AudioSystem.playGunshot(gameState.loadout[this.currentWeapon]);
 
         const pellets = weapon.pellets || 1;
         for (let i = 0; i < pellets; i++) {
@@ -207,7 +205,7 @@ class Player {
                 //Particles
                 for (let i = 0; i < 20; i++) {
                     gameState.particles.push(new Particle(
-                        thhis.x + (Math.random() - 0.5) * 50,
+                        this.x + (Math.random() - 0.5) * 50,
                         this.y + (Math.random() - 0.5) * 50,
                         "#fff", 500
                     ));
@@ -274,7 +272,7 @@ class Player {
 
         //Check for nearby doors
         gameState.doors.forEach(door => {
-            const dist = Math.hypot(door.x - this.y, door.y - this.y);
+            const dist = Math.hypot(door.x - this.x, door.y - this.y);
             if (dist < 40) {
                 if (door.locked) {
                     gameState.screen = "lockpick";
@@ -340,8 +338,8 @@ class Enemy {
         this.optimalRange = type === "heavy" ? 100 : 150;
         this.reloading = false;
         this.weapons = {
-            primary: this.createWeapon("M4A1"),
-            secondary: this.createWeapon("Glock 17")
+            primary: this.createWeapon("m4a1"),
+            secondary: this.createWeapon("glock")
         };
         this.currentWeapon = "primary"
     }
@@ -455,7 +453,7 @@ class Enemy {
                 this.currentWeapon = "secondary"
                 return;
             }
-            reload();
+            this.reload();
         }
 
         weapon.currentAmmo--;
@@ -524,7 +522,7 @@ class Enemy {
         const gridY = Math.floor(y / TILE_SIZE);
 
         if (gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT) {
-            return gameState.grid[gridY][gridX] === 1 || gamestate.grid[gridY][gridX] === 3;
+            return gameState.grid[gridY][gridX] === 1 || gameState.grid[gridY][gridX] === 3;
         }
         return true;
     }
@@ -607,7 +605,7 @@ class Civilian {
             gameState.enemies.forEach(enemy => {
                 const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
                 if (dist < 100) {
-                    const angle = Math.atan2(this.y - enemy.y.this.x - enemy.x);
+                    const angle = Math.atan2(this.y - enemy.y, this.x - enemy.x);
                     this.x += Math.cos(angle);
                     this.y += Math.sin(angle);
                     this.scared = true;
@@ -647,7 +645,7 @@ class Civilian {
         ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
 
         //Indicator
-        ctx.fillStyle = this.rescued ? "#0f0" : "ff0";
+        ctx.fillStyle = this.rescued ? "#0f0" : "#ff0";
         ctx.font = "12px monospace";
         ctx.fillText(this.rescued ? '✓' : '!', this.x - 4, this.y - 15);
     }
@@ -791,7 +789,7 @@ class Grenade {
         gameState.civilians.forEach(civ => {
             const res = applyBlast(civ.x, civ.y, this.damage * 0.9);
             if (res && res.dmg > 0 && !civ.dead && !civ.rescued) {
-                civ.takeDamage(res.dmg)
+                civ.takeDamage(res.dmg);
             }
         });
 
@@ -872,7 +870,7 @@ class Bullet {
                 }
             });
 
-            gamestate.civilians.forEach(civilian => {
+            gameState.civilians.forEach(civilian => {
                 const dist = Math.hypot(civilian.x - this.x, civilian.y - this.y);
                 if (dist < civilian.size / 2) {
                     civilian.takeDamage(this.damage);
@@ -900,7 +898,7 @@ class Bullet {
             //Enemys killing Civilians reducing the overall score, but not ending the mission instantly - TODO
         }
 
-        return this.lifetime > 0;;
+        return this.lifetime > 0;
     }
 
     draw(ctx) {
