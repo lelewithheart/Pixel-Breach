@@ -8,6 +8,7 @@ const editorState = {
     enemies: [],
     civilians: [],
     doors: [],
+    patrolPoints: [], // Array of {x, y, enemyIndex}
     undoStack: [],
     maxUndo: 50,
     isDrawing: false,
@@ -36,6 +37,7 @@ function initGrid() {
     editorState.enemies = [];
     editorState.civilians = [];
     editorState.doors = [];
+    editorState.patrolPoints = [];
 }
 
 function saveState() {
@@ -43,7 +45,8 @@ function saveState() {
         grid: JSON.parse(JSON.stringify(editorState.grid)),
         enemies: JSON.parse(JSON.stringify(editorState.enemies)),
         civilians: JSON.parse(JSON.stringify(editorState.civilians)),
-        doors: JSON.parse(JSON.stringify(editorState.doors))
+        doors: JSON.parse(JSON.stringify(editorState.doors)),
+        patrolPoints: JSON.parse(JSON.stringify(editorState.patrolPoints))
     };
     editorState.undoStack.push(state);
     if (editorState.undoStack.length > editorState.maxUndo) {
@@ -112,17 +115,32 @@ function placeElement(gridX, gridY) {
             break;
         case 'enemy':
             if (!editorState.enemies.find(e => e.x === gridX && e.y === gridY)) {
-                editorState.enemies.push({ x: gridX, y: gridY, type: 'normal' });
+                editorState.enemies.push({ x: gridX, y: gridY, type: 'normal', patrolPoints: [] });
             }
             break;
         case 'heavyenemy':
             if (!editorState.enemies.find(e => e.x === gridX && e.y === gridY)) {
-                editorState.enemies.push({ x: gridX, y: gridY, type: 'heavy' });
+                editorState.enemies.push({ x: gridX, y: gridY, type: 'heavy', patrolPoints: [] });
             }
             break;
         case 'hostage':
             if (!editorState.civilians.find(c => c.x === gridX && c.y === gridY)) {
                 editorState.civilians.push({ x: gridX, y: gridY });
+            }
+            break;
+        case 'patrolpoint':
+            // Find nearest enemy
+            let nearestEnemy = null;
+            let minDistance = Infinity;
+            editorState.enemies.forEach((enemy, index) => {
+                const dist = Math.hypot(enemy.x - gridX, enemy.y - gridY);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    nearestEnemy = { enemy, index };
+                }
+            });
+            if (nearestEnemy && minDistance < 10) { // Within 10 tiles
+                nearestEnemy.enemy.patrolPoints.push({ x: gridX, y: gridY });
             }
             break;
         case 'erase':
@@ -179,6 +197,10 @@ function removeEntitiesAt(gridX, gridY) {
     editorState.enemies = editorState.enemies.filter(e => e.x !== gridX || e.y !== gridY);
     editorState.civilians = editorState.civilians.filter(c => c.x !== gridX || c.y !== gridY);
     editorState.doors = editorState.doors.filter(d => d.x !== gridX || d.y !== gridY);
+    // Remove patrol points at this location
+    editorState.enemies.forEach(enemy => {
+        enemy.patrolPoints = enemy.patrolPoints.filter(p => p.x !== gridX || p.y !== gridY);
+    });
 }
 
 function render() {
@@ -231,6 +253,17 @@ function render() {
         ctx.fillStyle = "#fff"
         ctx.font = "10px monospace";
         ctx.fillText(e.type === "heavy" ? "H" : "E", e.x * TILE_SIZE + 6, e.y * TILE_SIZE + 13);
+        
+        // Draw patrol points for this enemy
+        e.patrolPoints.forEach((point, index) => {
+            ctx.fillStyle = "#0ff";
+            ctx.beginPath();
+            ctx.arc(point.x * TILE_SIZE + TILE_SIZE / 2, point.y * TILE_SIZE + TILE_SIZE / 2, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#000";
+            ctx.font = "8px monospace";
+            ctx.fillText((index + 1).toString(), point.x * TILE_SIZE + TILE_SIZE / 2 - 2, point.y * TILE_SIZE + TILE_SIZE / 2 + 2);
+        });
     });
 
     editorState.civilians.forEach(c => {
@@ -290,6 +323,12 @@ function renderMinimap() {
     editorState.enemies.forEach(e => {
         minimapCtx.fillStyle = e.type === "heavy" ? "#a00" : "#f00";
         minimapCtx.fillRect(e.x * TILE_SIZE * actualScale - 1, e.y * TILE_SIZE * actualScale - 1, 3, 3);
+        
+        // Draw patrol points
+        e.patrolPoints.forEach(point => {
+            minimapCtx.fillStyle = "#0ff";
+            minimapCtx.fillRect(point.x * TILE_SIZE * actualScale - 1, point.y * TILE_SIZE * actualScale - 1, 2, 2);
+        });
     });
 
     editorState.civilians.forEach(c => {
@@ -445,7 +484,10 @@ function loadMapData(mapData) {
     saveState();
 
     editorState.grid = mapData.grid;
-    editorState.enemies = mapData.entities?.enemies || [];
+    editorState.enemies = (mapData.entities?.enemies || []).map(enemy => ({
+        ...enemy,
+        patrolPoints: enemy.patrolPoints || []
+    }));
     editorState.civilians = mapData.entities?.civilians || [];
     editorState.doors = mapData.entities?.doors || [];
 
@@ -676,7 +718,8 @@ document.addEventListener("keydown", (e) => {
         "6": "spawn",
         "7": "exit",
         "8": "enemy",
-        "9": "hostage"
+        "9": "hostage",
+        "0": "patrolpoint"
     };
     if (toolMap[e.key]) {
         editorState.currentTool = toolMap[e.key];

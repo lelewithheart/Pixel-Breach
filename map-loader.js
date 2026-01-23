@@ -37,10 +37,14 @@ const MapLoader = {
             if (mapData.entities) {
 
                 if (mapData.entities.enemies) {
-                    mapData.entities.enemies.forEach(e => {
+                    mapData.entities.enemies.forEach((e, index) => {
                         const enemyX = e.x * TILE_SIZE + TILE_SIZE / 2;
                         const enemyY = e.y * TILE_SIZE + TILE_SIZE / 2;
-                        gameState.enemies.push(new Enemy(enemyX, enemyY, e.type || "normal"));
+                        const enemy = new Enemy(enemyX, enemyY, e.type || "normal");
+                        if (e.patrolPoints) {
+                            enemy.patrolPoints = e.patrolPoints.map(p => ({ x: p.x, y: p.y }));
+                        }
+                        gameState.enemies.push(enemy);
                     });
                 }
 

@@ -330,7 +330,7 @@ class Enemy {
         this.type = type;
         this.angle = 0;
         this.state = "patrol"; //patrol, alert, engage, stunned
-        this.patrolPoints = [];
+        this.patrolPoints = []; //example: {x: x1, y: y1}
         this.currentPatrolPoint = 0;
         this.detectionRange = 180; // Increased detection range
         this.fireRange = 220; // Increased fire range
@@ -459,8 +459,114 @@ class Enemy {
                 this.y += dy;
             }
         } else {
-            //Patroll from point to point - TODO
+            // Follow patrol points
+            const currentPoint = this.patrolPoints[this.currentPatrolPoint];
+            const targetX = currentPoint.x * TILE_SIZE + TILE_SIZE / 2;
+            const targetY = currentPoint.y * TILE_SIZE + TILE_SIZE / 2;
+            
+            const distToPoint = Math.hypot(targetX - this.x, targetY - this.y);
+            
+            if (distToPoint < 10) {
+                // Reached current patrol point, move to next
+                this.currentPatrolPoint = (this.currentPatrolPoint + 1) % this.patrolPoints.length;
+            } else {
+                // Move towards current patrol point
+                const path = this.findPath(targetX, targetY);
+                if (path.length > 0) {
+                    const nextWaypoint = path[0];
+                    this.angle = Math.atan2(nextWaypoint.y - this.y, nextWaypoint.x - this.x);
+                    
+                    const dx = Math.cos(this.angle) * this.speed;
+                    const dy = Math.sin(this.angle) * this.speed;
+                    if (!this.checkCollision(this.x + dx, this.y + dy)) {
+                        this.x += dx;
+                        this.y += dy;
+                    }
+                }
+            }
         }
+    }
+
+    findPath(targetX, targetY){
+        const path = [];
+        let currentX = this.x;
+        let currentY = this.y;
+        const stepDistance = 10; // Check every 10 pixels along path
+        const minDistance = 5; // Stop when within 5 pixels of target
+
+        while (Math.hypot(targetX - currentX, targetY - currentY) > minDistance) {
+            const angle = Math.atan2(targetY - currentY, targetX - currentX);
+            const distance = Math.hypot(targetX - currentX, targetY - currentY);
+            
+            // Try straight line
+            let clearDistance = 0;
+            for (let d = 0; d <= distance; d += stepDistance) {
+                const checkX = currentX + Math.cos(angle) * d;
+                const checkY = currentY + Math.sin(angle) * d;
+                if (this.checkCollision(checkX, checkY)) {
+                    break;
+                }
+                clearDistance = d;
+            }
+            
+            if (clearDistance >= distance) {
+                // Straight path is clear, go directly to target
+                path.push({x: targetX, y: targetY});
+                break;
+            } else {
+                // Hit obstacle, go to last clear point
+                const clearX = currentX + Math.cos(angle) * clearDistance;
+                const clearY = currentY + Math.sin(angle) * clearDistance;
+                
+                // From clear point, find next direction
+                const nextPoint = this.nextPoint(clearX, clearY, targetX, targetY, angle);
+                if (!nextPoint) {
+                    // No path found
+                    break;
+                }
+                
+                path.push(nextPoint);
+                currentX = nextPoint.x;
+                currentY = nextPoint.y;
+            }
+        }
+        
+        return path;
+    }
+
+    nextPoint(startX, startY, endX, endY, idealAngle){
+        const scanRange = Math.PI / 3; // Scan 60 degrees up and down
+        const stepAngle = Math.PI / 180; // 1 degree steps
+        const moveDistance = 40; // Try moving 40 pixels in new direction
+        
+        // First try the ideal angle
+        const idealX = startX + Math.cos(idealAngle) * moveDistance;
+        const idealY = startY + Math.sin(idealAngle) * moveDistance;
+        if (!this.checkCollision(idealX, idealY)) {
+            return {x: idealX, y: idealY};
+        }
+        
+        // Scan angles from ideal - range to ideal + range
+        for (let offset = stepAngle; offset <= scanRange; offset += stepAngle) {
+            // Try clockwise (positive offset)
+            const angle1 = idealAngle + offset;
+            const x1 = startX + Math.cos(angle1) * moveDistance;
+            const y1 = startY + Math.sin(angle1) * moveDistance;
+            if (!this.checkCollision(x1, y1)) {
+                return {x: x1, y: y1};
+            }
+            
+            // Try counter-clockwise (negative offset)
+            const angle2 = idealAngle - offset;
+            const x2 = startX + Math.cos(angle2) * moveDistance;
+            const y2 = startY + Math.sin(angle2) * moveDistance;
+            if (!this.checkCollision(x2, y2)) {
+                return {x: x2, y: y2};
+            }
+        }
+        
+        // No clear direction found
+        return null;
     }
 
     shoot() {
