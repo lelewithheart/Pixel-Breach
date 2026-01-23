@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Breach - Admin Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: #111;
+            border-bottom: 2px solid #0f0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #888;
+            font-size: 14px;
+        }
+
+        .container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+
+        .sidebar {
+            width: 350px;
+            background: #111;
+            border-right: 1px solid #333;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            border-bottom: 1px solid #333;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            background: #1a1a1a;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-header .count {
+            background: #0f0;
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+
+        .map-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .map-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #222;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .map-item:hover {
+            background: #1a1a1a;
+        }
+
+        .map-item.selected {
+            background: #0a2a0a;
+            border-left: 3px solid #0f0;
+        }
+
+        .map-item .name {
+            font-weight: bold;
+            color: #0f0;
+            margin-bottom: 3px;
+        }
+
+        .map-item .meta {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .map-item .meta span {
+            margin-right: 10px;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0d0d0d;
+        }
+
+        .toolbar {
+            padding: 15px;
+            background: #111;
+            border-bottom: 1px solid #333;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .toolbar button {
+            padding: 10px 20px;
+            border: 1px solid #333;
+            background: #1a1a1a;
+            color: #0f0;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toolbar button:hover {
+            background: #252525;
+            border-color: #0f0;
+        }
+
+        .toolbar button.accept {
+            background: #0a2a0a;
+            border-color: #0f0;
+        }
+
+        .toolbar button.accept:hover {
+            background: #0f3f0f;
+        }
+
+        .toolbar button.deny {
+            background: #2a0a0a;
+            border-color: #f00;
+            color: #f00;
+        }
+
+        .toolbar button.deny:hover {
+            background: #3f0f0f;
+        }
+
+        .toolbar button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .toolbar .spacer {
+            flex: 1;
+        }
+
+        .map-info {
+            padding: 20px;
+            background: #111;
+            border-bottom: 1px solid #333;
+        }
+
+        .map-info h2 {
+            margin-bottom: 10px;
+            color: #0f0;
+        }
+
+        .map-info .details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .map-info .detail-item {
+            background: #1a1a1a;
+            padding: 10px;
+            border: 1px solid #333;
+        }
+
+        .map-info .detail-item label {
+            display: block;
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .map-info .detail-item span {
+            font-size: 14px;
+        }
+
+        .preview-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        #previewCanvas {
+            border: 2px solid #333;
+            background: #000;
+        }
+
+        .no-selection {
+            text-align: center;
+            color: #555;
+        }
+
+        .no-selection h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .status-message {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 5px;
+            font-weight: bold;
+            animation: slideIn 0.3s ease;
+            z-index: 1000;
+        }
+
+        .status-message.success {
+            background: #0a2a0a;
+            border: 1px solid #0f0;
+            color: #0f0;
+        }
+
+        .status-message.error {
+            background: #2a0a0a;
+            border: 1px solid #f00;
+            color: #f00;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .empty-state {
+            padding: 30px;
+            text-align: center;
+            color: #555;
+        }
+
+        .test-controls {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            padding: 10px 20px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            display: none;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .test-controls.active {
+            display: flex;
+        }
+
+        .test-controls button {
+            padding: 8px 15px;
+            background: #222;
+            border: 1px solid #444;
+            color: #0f0;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .test-controls button:hover {
+            background: #333;
+        }
+
+        .difficulty-easy { color: #0f0; }
+        .difficulty-medium { color: #ff0; }
+        .difficulty-hard { color: #f00; }
+
+        .refresh-btn {
+            background: #1a1a1a !important;
+            border: 1px solid #0f0 !important;
+        }
+
+        .back-link {
+            color: #0f0;
+            text-decoration: none;
+            padding: 10px 15px;
+            border: 1px solid #333;
+            transition: all 0.2s;
+        }
+
+        .back-link:hover {
+            background: #1a1a1a;
+            border-color: #0f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔧 PIXEL BREACH - ADMIN PANEL</h1>
+        <p>Map Review &amp; Management System</p>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-header">
+                    📥 PENDING REVIEW
+                    <span class="count" id="unverified-count">0</span>
+                </div>
+                <div class="map-list" id="unverified-list">
+                    <div class="empty-state">Loading...</div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-header">
+                    ✅ COMMUNITY MAPS
+                    <span class="count" id="community-count">0</span>
+                </div>
+                <div class="map-list" id="community-list">
+                    <div class="empty-state">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="toolbar">
+                <a href="/" class="back-link">← Back to Game</a>
+                <button class="refresh-btn" onclick="loadAllMaps()">🔄 Refresh</button>
+                <div class="spacer"></div>
+                <button id="btn-testplay" disabled>▶ Test Play</button>
+                <button id="btn-accept" class="accept" disabled>✓ Accept</button>
+                <button id="btn-deny" class="deny" disabled>✗ Deny</button>
+                <button id="btn-delete" class="deny" disabled style="display:none;">🗑 Delete</button>
+            </div>
+
+            <div class="map-info" id="map-info" style="display: none;">
+                <h2 id="info-name">Map Name</h2>
+                <div class="details">
+                    <div class="detail-item">
+                        <label>Author</label>
+                        <span id="info-author">Unknown</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Difficulty</label>
+                        <span id="info-difficulty">Medium</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Enemies</label>
+                        <span id="info-enemies">0</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Hostages</label>
+                        <span id="info-hostages">0</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Submitted</label>
+                        <span id="info-submitted">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Description</label>
+                        <span id="info-description">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="preview-container">
+                <div class="test-controls" id="test-controls">
+                    <span>Testing Mode</span>
+                    <button onclick="stopTestPlay()">⏹ Stop Test</button>
+                    <button onclick="acceptFromTest()" style="background:#0a2a0a;">✓ Accept</button>
+                    <button onclick="denyFromTest()" style="background:#2a0a0a;color:#f00;">✗ Deny</button>
+                </div>
+                
+                <div class="no-selection" id="no-selection">
+                    <h2>No Map Selected</h2>
+                    <p>Select a map from the sidebar to preview and review</p>
+                </div>
+                
+                <canvas id="previewCanvas" width="800" height="600" style="display: none;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let selectedMap = null;
+        let selectedType = null; // 'unverified' or 'community'
+        let currentMapData = null;
+        let isTestPlaying = false;
+        let testGameState = null;
+
+        // Preview canvas
+        const canvas = document.getElementById('previewCanvas');
+        const ctx = canvas.getContext('2d');
+        const TILE_SIZE = 20;
+        const GRID_WIDTH = 40;
+        const GRID_HEIGHT = 30;
+
+        // Load all maps
+        async function loadAllMaps() {
+            await loadUnverifiedMaps();
+            await loadCommunityMaps();
+        }
+
+        async function loadUnverifiedMaps() {
+            try {
+                const res = await fetch('/api/unverified');
+                const data = await res.json();
+                
+                document.getElementById('unverified-count').textContent = data.maps.length;
+                const list = document.getElementById('unverified-list');
+                
+                if (data.maps.length === 0) {
+                    list.innerHTML = '<div class="empty-state">No maps pending review</div>';
+                    return;
+                }
+                
+                list.innerHTML = data.maps.map(map => `
+                    <div class="map-item" onclick="selectMap('${map.filename}', 'unverified')">
+                        <div class="name">${escapeHtml(map.name)}</div>
+                        <div class="meta">
+                            <span>👤 ${escapeHtml(map.author)}</span>
+                            <span>👾 ${map.enemyCount}</span>
+                            <span>👥 ${map.hostageCount}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load unverified maps:', e);
+            }
+        }
+
+        async function loadCommunityMaps() {
+            try {
+                const res = await fetch('/api/community');
+                const data = await res.json();
+                
+                document.getElementById('community-count').textContent = data.maps.length;
+                const list = document.getElementById('community-list');
+                
+                if (data.maps.length === 0) {
+                    list.innerHTML = '<div class="empty-state">No community maps yet</div>';
+                    return;
+                }
+                
+                list.innerHTML = data.maps.map(map => `
+                    <div class="map-item" onclick="selectMap('${map.filename}', 'community')">
+                        <div class="name">${escapeHtml(map.name)}</div>
+                        <div class="meta">
+                            <span>👤 ${escapeHtml(map.author)}</span>
+                            <span>👾 ${map.enemyCount}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load community maps:', e);
+            }
+        }
+
+        async function selectMap(filename, type) {
+            selectedMap = filename;
+            selectedType = type;
+            
+            // Update UI selection
+            document.querySelectorAll('.map-item').forEach(el => el.classList.remove('selected'));
+            event.currentTarget.classList.add('selected');
+            
+            // Load map data
+            try {
+                const res = await fetch(`/api/map/${type}/${encodeURIComponent(filename)}`);
+                currentMapData = await res.json();
+                
+                // Update info panel
+                document.getElementById('map-info').style.display = 'block';
+                document.getElementById('info-name').textContent = currentMapData.metadata?.name || filename;
+                document.getElementById('info-author').textContent = currentMapData.metadata?.author || 'Unknown';
+                
+                const difficulty = currentMapData.metadata?.difficulty || 'medium';
+                const diffSpan = document.getElementById('info-difficulty');
+                diffSpan.textContent = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+                diffSpan.className = `difficulty-${difficulty}`;
+                
+                document.getElementById('info-enemies').textContent = currentMapData.entities?.enemies?.length || 0;
+                document.getElementById('info-hostages').textContent = currentMapData.entities?.civilians?.length || 0;
+                document.getElementById('info-description').textContent = currentMapData.metadata?.description || '-';
+                
+                const submitted = currentMapData.metadata?.submittedAt || currentMapData.metadata?.createdAt;
+                document.getElementById('info-submitted').textContent = submitted ? new Date(submitted).toLocaleString() : '-';
+                
+                // Show preview
+                document.getElementById('no-selection').style.display = 'none';
+                canvas.style.display = 'block';
+                renderPreview();
+                
+                // Update buttons
+                document.getElementById('btn-testplay').disabled = false;
+                
+                if (type === 'unverified') {
+                    document.getElementById('btn-accept').disabled = false;
+                    document.getElementById('btn-accept').style.display = '';
+                    document.getElementById('btn-deny').disabled = false;
+                    document.getElementById('btn-deny').style.display = '';
+                    document.getElementById('btn-delete').style.display = 'none';
+                } else {
+                    document.getElementById('btn-accept').style.display = 'none';
+                    document.getElementById('btn-deny').style.display = 'none';
+                    document.getElementById('btn-delete').style.display = '';
+                    document.getElementById('btn-delete').disabled = false;
+                }
+                
+            } catch (e) {
+                showStatus('Failed to load map: ' + e.message, 'error');
+            }
+        }
+
+        function renderPreview() {
+            if (!currentMapData || !currentMapData.grid) return;
+            
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const grid = currentMapData.grid;
+            
+            // Draw grid
+            for (let y = 0; y < grid.length; y++) {
+                for (let x = 0; x < grid[y].length; x++) {
+                    const tile = grid[y][x];
+                    let color;
+                    switch (tile) {
+                        case 1: color = '#444'; break; // Wall
+                        case 2: color = '#0f0'; break; // Spawn
+                        case 3: color = '#666'; break; // Cover
+                        case 4: color = '#00f'; break; // Exit
+                        default: color = '#222'; break; // Floor
+                    }
+                    ctx.fillStyle = color;
+                    ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                    
+                    ctx.strokeStyle = '#333';
+                    ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                }
+            }
+            
+            // Draw doors
+            (currentMapData.entities?.doors || []).forEach(d => {
+                ctx.fillStyle = d.locked ? '#820' : '#640';
+                ctx.fillRect(d.x * TILE_SIZE, d.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            });
+            
+            // Draw enemies
+            (currentMapData.entities?.enemies || []).forEach(e => {
+                ctx.fillStyle = e.type === 'heavy' ? '#a00' : '#f00';
+                ctx.fillRect(e.x * TILE_SIZE + 2, e.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+            });
+            
+            // Draw civilians
+            (currentMapData.entities?.civilians || []).forEach(c => {
+                ctx.fillStyle = '#ff0';
+                ctx.fillRect(c.x * TILE_SIZE + 2, c.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+            });
+        }
+
+        // Test play functionality - opens in new window with the actual game
+        function startTestPlay() {
+            if (!currentMapData) return;
+            
+            // Store map data in sessionStorage for the game to load
+            sessionStorage.setItem('adminTestMap', JSON.stringify(currentMapData));
+            sessionStorage.setItem('adminTestFilename', selectedMap);
+            sessionStorage.setItem('adminTestType', selectedType);
+            
+            // Open game in new window with test mode flag
+            window.open('/?adminTest=true', 'testplay', 'width=1200,height=800');
+        }
+
+        function stopTestPlay() {
+            isTestPlaying = false;
+            document.getElementById('test-controls').classList.remove('active');
+            renderPreview();
+        }
+
+        async function acceptMap() {
+            if (!selectedMap || selectedType !== 'unverified') return;
+            
+            if (!confirm(`Accept "${currentMapData?.metadata?.name || selectedMap}" to community levels?`)) return;
+            
+            try {
+                const res = await fetch(`/api/accept/${encodeURIComponent(selectedMap)}`, { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showStatus('Map accepted! Added to community levels.', 'success');
+                    selectedMap = null;
+                    currentMapData = null;
+                    document.getElementById('map-info').style.display = 'none';
+                    document.getElementById('no-selection').style.display = 'block';
+                    canvas.style.display = 'none';
+                    disableButtons();
+                    loadAllMaps();
+                } else {
+                    showStatus('Failed: ' + data.error, 'error');
+                }
+            } catch (e) {
+                showStatus('Error: ' + e.message, 'error');
+            }
+        }
+
+        async function denyMap() {
+            if (!selectedMap || selectedType !== 'unverified') return;
+            
+            if (!confirm(`Reject and DELETE "${currentMapData?.metadata?.name || selectedMap}"? This cannot be undone!`)) return;
+            
+            try {
+                const res = await fetch(`/api/deny/${encodeURIComponent(selectedMap)}`, { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showStatus('Map rejected and deleted.', 'success');
+                    selectedMap = null;
+                    currentMapData = null;
+                    document.getElementById('map-info').style.display = 'none';
+                    document.getElementById('no-selection').style.display = 'block';
+                    canvas.style.display = 'none';
+                    disableButtons();
+                    loadAllMaps();
+                } else {
+                    showStatus('Failed: ' + data.error, 'error');
+                }
+            } catch (e) {
+                showStatus('Error: ' + e.message, 'error');
+            }
+        }
+
+        async function deleteCommunityMap() {
+            if (!selectedMap || selectedType !== 'community') return;
+            
+            if (!confirm(`DELETE "${currentMapData?.metadata?.name || selectedMap}" from community levels? This cannot be undone!`)) return;
+            
+            try {
+                const res = await fetch(`/api/delete-community/${encodeURIComponent(selectedMap)}`, { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showStatus('Community map deleted.', 'success');
+                    selectedMap = null;
+                    currentMapData = null;
+                    document.getElementById('map-info').style.display = 'none';
+                    document.getElementById('no-selection').style.display = 'block';
+                    canvas.style.display = 'none';
+                    disableButtons();
+                    loadAllMaps();
+                } else {
+                    showStatus('Failed: ' + data.error, 'error');
+                }
+            } catch (e) {
+                showStatus('Error: ' + e.message, 'error');
+            }
+        }
+
+        function acceptFromTest() {
+            stopTestPlay();
+            acceptMap();
+        }
+
+        function denyFromTest() {
+            stopTestPlay();
+            denyMap();
+        }
+
+        function disableButtons() {
+            document.getElementById('btn-testplay').disabled = true;
+            document.getElementById('btn-accept').disabled = true;
+            document.getElementById('btn-deny').disabled = true;
+            document.getElementById('btn-delete').disabled = true;
+        }
+
+        function showStatus(message, type) {
+            const existing = document.querySelector('.status-message');
+            if (existing) existing.remove();
+            
+            const div = document.createElement('div');
+            div.className = `status-message ${type}`;
+            div.textContent = message;
+            document.body.appendChild(div);
+            
+            setTimeout(() => div.remove(), 3000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Button event listeners
+        document.getElementById('btn-testplay').addEventListener('click', startTestPlay);
+        document.getElementById('btn-accept').addEventListener('click', acceptMap);
+        document.getElementById('btn-deny').addEventListener('click', denyMap);
+        document.getElementById('btn-delete').addEventListener('click', deleteCommunityMap);
+
+        // Initial load
+        loadAllMaps();
+    </script>
+</body>
+</html>

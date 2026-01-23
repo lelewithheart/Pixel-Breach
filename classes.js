@@ -68,7 +68,7 @@ class Player {
             for (let dy = -1; dy <= 1; dy++) {
                 const checkX = gridX + dx;
                 const checkY = gridY + dy;
-                if (checkX >= 0 && checkY < GRID_WIDTH && checkY >= 0 && checkY < GRID_HEIGHT) {
+                if (checkX >= 0 && checkX < GRID_WIDTH && checkY >= 0 && checkY < GRID_HEIGHT) {
                     const tile = gameState.grid[checkY][checkX];
                     if (tile === 1 || tile === 3) { //1: Wall, 3: Cover
                         const tileLeft = checkX * TILE_SIZE;

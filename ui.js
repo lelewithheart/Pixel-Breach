@@ -222,6 +222,12 @@ document.getElementById('clear-level').addEventListener('click', () => {
     clearLevel();
 });
 
+const DIFFICULTY_COLORS = {
+    "easy": "#0f0",
+    "medium": "#ff0",
+    "hard": "#f00"
+};
+
 // Home screen navigation
 document.getElementById('btn-campaign').addEventListener('click', () => {
     AudioSystem.playClick();
@@ -232,11 +238,18 @@ document.getElementById('btn-campaign').addEventListener('click', () => {
     const missionList = document.getElementById('mission-list');
     missionList.innerHTML = '';
     MISSIONS.forEach(mission => {
+        const diffColor = DIFFICULTY_COLORS[mission.difficulty] || "#888";
         const missionDiv = document.createElement('div');
         missionDiv.style.cssText = 'padding: 15px; margin: 10px 0; background: #333; border: 1px solid #555; cursor: pointer;';
         missionDiv.innerHTML = `
-            <strong style="color: #0f0;">Mission ${mission.id}: ${mission.name}</strong><br>
-            <span style="font-size: 12px;">${mission.description}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong style="color: #0f0;">Mission ${mission.id}: ${mission.name}</strong>
+                <span style="color: ${diffColor}; font-size: 10px; text-transform: uppercase;">${mission.difficulty || 'medium'}</span>
+            </div>
+            <span style="font-size: 12px; color: #aaa;">${mission.description}</span>
+            <div style="font-size: 10px; color: #666; margin-top: 5px;">
+                Objectives: ${mission.objectives.length}
+            </div>
         `;
         missionDiv.addEventListener('click', () => {
             AudioSystem.playSelect();
@@ -249,52 +262,103 @@ document.getElementById('btn-campaign').addEventListener('click', () => {
     });
 });
 
-document.getElementById('btn-community').addEventListener('click', () => {
+document.getElementById('btn-community').addEventListener('click', async () => {
     AudioSystem.playClick();
     document.getElementById('home-screen').classList.remove('active');
     document.getElementById('community-screen').classList.add('active');
 
-    // Load community levels from localStorage
     const communityList = document.getElementById('community-list');
+    communityList.innerHTML = '<p style="color: #888;">Loading community levels...</p>';
+
+    // Load community maps from server/localStorage
+    const maps = await loadCommunityMaps();
+
     communityList.innerHTML = '';
 
-    const savedLevel = localStorage.getItem('customLevel');
-    if (savedLevel) {
-        const levelDiv = document.createElement('div');
-        levelDiv.style.cssText = 'padding: 15px; margin: 10px 0; background: #333; border: 1px solid #555; cursor: pointer;';
-        levelDiv.innerHTML = `
-            <strong style="color: #0f0;">Custom Level</strong><br>
-            <span style="font-size: 12px;">Player-created level</span>
-        `;
-        levelDiv.addEventListener('click', () => {
-            AudioSystem.playSelect();
-            loadLevel();
-            gameState.screen = 'playing';
-            gameState.playing = true;
-            document.getElementById('community-screen').classList.remove('active');
-            document.getElementById('game-container').style.display = 'flex';
-            AudioSystem.playMusic("gameplay");
+    if (maps.length > 0) {
+        maps.forEach(map => {
+            const levelDiv = document.createElement('div');
+            levelDiv.style.cssText = 'padding: 15px; margin: 10px 0; background: #333; border: 1px solid #555; cursor: pointer;';
+            levelDiv.innerHTML = `
+                <strong style="color: #0f0;">${map.name}</strong>
+                ${map.isServerMap ? '<span style="color: #0a0; font-size: 10px; margin-left: 10px;">✓ VERIFIED</span>' : ''}
+                <br>
+                <span style="font-size: 12px;">${map.description || 'Community level'}</span><br>
+                <span style="font-size: 10px; color: #888;">By: ${map.author || 'Unknown'}</span>
+                ${map.enemyCount ? `<span style="font-size: 10px; color: #666; margin-left: 10px;">👾 ${map.enemyCount}</span>` : ''}
+            `;
+            levelDiv.addEventListener('click', async () => {
+                AudioSystem.playSelect();
+                
+                // Load the map data
+                const mapData = map.isServerMap 
+                    ? await loadCommunityMapData(map.id)
+                    : map.data || await loadCommunityMapData(map.id);
+                
+                if (mapData) {
+                    loadLevelFromData(mapData);
+                    gameState.screen = 'playing';
+                    gameState.playing = true;
+                    document.getElementById('community-screen').classList.remove('active');
+                    document.getElementById('game-container').style.display = 'flex';
+                    AudioSystem.playMusic('gameplay');
+                } else {
+                    alert('Failed to load map data');
+                }
+            });
+            levelDiv.addEventListener('mouseenter', () => levelDiv.style.background = '#444');
+            levelDiv.addEventListener('mouseleave', () => levelDiv.style.background = '#333');
+            communityList.appendChild(levelDiv);
         });
-        levelDiv.addEventListener('mouseenter', () => levelDiv.style.background = '#444');
-        levelDiv.addEventListener('mouseleave', () => levelDiv.style.background = '#333');
-        communityList.appendChild(levelDiv);
     } else {
         communityList.innerHTML = '<p style="color: #888;">No community levels found. Create one in the Level Editor!</p>';
     }
+
+    const loadFileDiv = document.createElement('div');
+    loadFileDiv.style.cssText = 'padding: 15px; margin: 20px 0 10px 0; text-align: center;';
+    loadFileDiv.innerHTML = `
+        <p style="color: #888; margin-bottom: 10px;">Or load a map file:</p>
+        <input type="file" id="community-map-input" accept=".json" style="display: none;">
+        <button id="community-load-file" style="padding: 10px 20px; cursor: pointer;">📂 Load Map File</button>
+    `;
+    communityList.appendChild(loadFileDiv);
+
+    setTimeout(() => {
+        const loadBtn = document.getElementById("community-load-file");
+        const fileInput = document.getElementById("community-map-input");
+        if (loadBtn && fileInput) {
+            loadBtn.addEventListener("click", () => {
+                AudioSystem.playClick();
+                fileInput.click();
+            });
+            fileInput.addEventListener("change", (e) => {
+                if (e.target.files.length > 0) {
+                    loadLevelFromFile(e.target.files[0]);
+                    document.getElementById("community-screen").classList.remove("active");
+                    e.target.value = "";
+                }
+            });
+        }
+    }, 0);
 });
 
 document.getElementById('btn-editor-home').addEventListener('click', () => {
     AudioSystem.playClick();
-    document.getElementById('home-screen').classList.remove('active');
-    document.getElementById('game-container').style.display = 'flex';
-    gameState.editorMode = true;
-    gameState.playing = false;
-    gameState.screen = 'editor';
-    if (!gameState.player) {
-        initGrid();
-        gameState.player = new Player(100, 100);
+    window.location.href = 'editor/editor.html';
+});
+
+// Load map file button
+document.getElementById('btn-load-map').addEventListener('click', () => {
+    AudioSystem.playClick();
+    document.getElementById('map-file-input').click();
+});
+
+// Map file input handler
+document.getElementById('map-file-input').addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        loadLevelFromFile(e.target.files[0]);
+        e.target.value = ''; // Reset for future loads
     }
-    document.getElementById('level-editor').classList.add('active');
 });
 
 document.getElementById('btn-loadout-home').addEventListener('click', () => {
@@ -363,8 +427,8 @@ document.addEventListener('keydown', (e) => {
 initGrid();
 document.getElementById('game-container').style.display = 'none';
 
-function initAudioOnInteraction(){
-    if(!AudioSystem.initialized){
+function initAudioOnInteraction() {
+    if (!AudioSystem.initialized) {
         AudioSystem.init();
         AudioSystem.playMusic("menu");
     }
@@ -374,7 +438,7 @@ function initAudioOnInteraction(){
 document.addEventListener("click", initAudioOnInteraction);
 document.addEventListener("keydown", initAudioOnInteraction);
 
-document.getElementById("toggle-music").addEventListener("click", () =>{
+document.getElementById("toggle-music").addEventListener("click", () => {
     AudioSystem.init();
     const enabled = AudioSystem.toggleMusic();
     const btn = document.getElementById("toggle-music");
@@ -390,7 +454,7 @@ document.getElementById("toggle-music").addEventListener("click", () =>{
     AudioSystem.playClick();
 });
 
-document.getElementById("master-volume").addEventListener("input", (e) =>{
+document.getElementById("master-volume").addEventListener("input", (e) => {
     AudioSystem.init();
     AudioSystem.setMasterVolume(e.target.value / 100);
 });
@@ -405,5 +469,8 @@ document.getElementById('toggle-sfx').addEventListener('click', () => {
         AudioSystem.playClick();
     }
 });
+
+// Check if opened from admin panel for testing
+checkAdminTestMode();
 
 gameLoop();

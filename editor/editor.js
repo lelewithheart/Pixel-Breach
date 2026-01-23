@@ -218,7 +218,7 @@ function render() {
     editorState.doors.forEach(d => {
         ctx.fillStyle = d.locked ? "#820" : "#640";
         ctx.fillRect(d.x * TILE_SIZE, d.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-        if(d.locked){
+        if (d.locked) {
             ctx.fillStyle = "#ff0";
             ctx.font = "12px monospace";
             ctx.fillText("🔒", d.x * TILE_SIZE + 2, d.y * TILE_SIZE + 14);
@@ -227,8 +227,469 @@ function render() {
 
     editorState.enemies.forEach(e => {
         ctx.fillStyle = e.type === "heavy" ? "#a00" : "#f00";
-        ctx.fillRect(e.x * TILE_SIZE + 2, e.y * TILE_SIZE +2, TILE_SIZE - 4, TILE_SIZE - 4);
+        ctx.fillRect(e.x * TILE_SIZE + 2, e.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
         ctx.fillStyle = "#fff"
-    })
+        ctx.font = "10px monospace";
+        ctx.fillText(e.type === "heavy" ? "H" : "E", e.x * TILE_SIZE + 6, e.y * TILE_SIZE + 13);
+    });
+
+    editorState.civilians.forEach(c => {
+        ctx.fillStyle = '#ff0';
+        ctx.fillRect(c.x * TILE_SIZE + 2, c.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+        ctx.fillStyle = '#000';
+        ctx.font = '10px monospace';
+        ctx.fillText('C', c.x * TILE_SIZE + 6, c.y * TILE_SIZE + 13);
+    });
+
+    if (editorState.roomCorner1) {
+        ctx.strokeStyle = "#0ff";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(
+            editorState.roomCorner1.x * TILE_SIZE,
+            editorState.roomCorner1.y * TILE_SIZE,
+            TILE_SIZE,
+            TILE_SIZE
+        );
+        ctx.setLineDash([]);
+        ctx.lineWidth = 1;
+    }
+
+    renderMinimap();
 }
 
+function renderMinimap() {
+    const scale = 180 / (GRID_WIDTH * TILE_SIZE);
+    const scaleY = 135 / (GRID_HEIGHT * TILE_SIZE);
+    const actualScale = Math.min(scale, scaleY);
+
+    minimapCtx.fillStyle = "#000";
+    minimapCtx.fillRect(0, 0, 180, 135);
+
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+        for (let x = 0; x < GRID_WIDTH; x++) {
+            const tile = editorState.grid[y][x];
+            if (tile === 1) {
+                minimapCtx.fillStyle = "#666";
+            } else if (tile === 2) {
+                minimapCtx.fillStyle = "#0f0";
+            } else if (tile === 4) {
+                minimapCtx.fillStyle = "#00f";
+            } else {
+                continue;
+            }
+            minimapCtx.fillRect(
+                y * TILE_SIZE * actualScale,
+                y * TILE_SIZE * actualScale,
+                TILE_SIZE * actualScale,
+                TILE_SIZE * actualScale
+            );
+        }
+    }
+
+    editorState.enemies.forEach(e => {
+        minimapCtx.fillStyle = e.type === "heavy" ? "#a00" : "#f00";
+        minimapCtx.fillRect(e.x * TILE_SIZE * actualScale - 1, e.y * TILE_SIZE * actualScale - 1, 3, 3);
+    });
+
+    editorState.civilians.forEach(c => {
+        minimapCtx.fillStyle = '#ff0';
+        minimapCtx.fillRect(c.x * TILE_SIZE * actualScale - 1, c.y * TILE_SIZE * actualScale - 1, 3, 3);
+    });
+}
+
+function updateStats() {
+    const normalEnemies = editorState.enemies.filter(e => e.type === "normal").length;
+    const heavyEnemies = editorState.enemies.filter(e => e.type === "heavy").length;
+    const lockedDoors = editorState.doors.filter(d => d.locked).length;
+    const unlockedDoors = editorState.doors.filter(d => !d.locked).length;
+
+    let exitCount = 0;
+    let spawnCount = 0;
+
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+        for (let x = 0; x < GRID_WIDTH; x++) {
+            if (editorState.grid[y][x] === 4) exitCount++;
+            if (editorState.grid[y][x] === 2) spawnCount++;
+        }
+    }
+
+    document.getElementById("stat-enemies").textContent = normalEnemies;
+    document.getElementById("stat-heavy").textContent = heavyEnemies;
+    document.getElementById("stat-hostages").textContent = editorState.civilians.length;
+    document.getElementById("stat-doors").textContent = unlockedDoors;
+    document.getElementById("stat-locked").textContent = lockedDoors;
+    document.getElementById("stat-exits").textContent = exitCount;
+    document.getElementById("stat-spawns").textContent = spawnCount;
+}
+
+function validateMap() {
+    const issues = [];
+    const warnings = [];
+
+    let hasSpawn = false;
+    let hasExit = false;
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+        for (let x = 0; x < GRID_WIDTH; x++) {
+            if (editorState.grid[y][x] === 2) hasSpawn = true;
+            if (editorState.grid[y][x] === 4) hasExit = true;
+        }
+    }
+
+    if (!hasSpawn) issues.push("No spawn point! Add a spawn point for the Player");
+    if (!hasExit) issues.push("No exit! Add an extraction point.");
+
+    if (editorState.enemies.length === 0) {
+        warnings.push("No enemies placed. Consider adding some enemies.");
+    }
+    if (editorState.civilians.length === 0) {
+        warnings.push("No hostages placed. Consider adding hostages.");
+    }
+    if (editorState.enemies.length > 25) {
+        warnings.push("Many enemies placed. This might make the map very difficult.");
+    }
+
+    const resultsDiv = document.getElementById("validation-results");
+    if (issues.length === 0 && warnings.length === 0) {
+        resultsDiv.innerHTML = '<div class="info-box">Map is valid and ready to export!</div>';
+    } else {
+        let html = '';
+        if (issues.length > 0) {
+            html += '<div class="warning-box">' + issues.join('<br>') + '</div>';
+        }
+        if (warnings.length > 0) {
+            html += '<div class="info-box">' + warnings.join('<br>') + '</div>';
+        }
+        resultsDiv.innerHTML = html;
+    }
+}
+
+function createMapData() {
+    let spawnX = 5, spawnY = 5
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+        for (let x = 0; x < GRID_WIDTH; x++) {
+            if (editorState.grid[y][x] === 2) {
+                spawnX = x;
+                spawnY = y;
+                break;
+            }
+        }
+    }
+
+    return {
+        version: "1.0",
+        metadata: {
+            name: document.getElementById("map-name").value || "Untitled Map",
+            description: document.getElementById("map-description").value || "",
+            author: document.getElementById("map-author").value || "Unknown",
+            difficulty: document.getElementById("map-difficulty").value,
+            createdAt: new Date().toISOString()
+        },
+        settings: {
+            gridWidth: GRID_WIDTH,
+            gridHeight: GRID_HEIGHT,
+            timeLimit: null
+        },
+        objectives: {
+            eliminateEnemies: true,
+            rescueHostages: true,
+            reachExtraction: true,
+            custom: []
+        },
+        grid: editorState.grid,
+        spawn: { x: spawnX, y: spawnY },
+        entities: {
+            enemies: editorState.enemies,
+            civilians: editorState.civilians,
+            doors: editorState.doors
+        },
+        rooms: []
+    };
+}
+
+function exportMap() {
+    const mapData = createMapData();
+    const json = JSON.stringify(mapData, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    const filename = (mapData.metadata.name || "pixel-breach-map").toLowerCase().replace(/\s+/g, '-') + '.json';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function importMap(file) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        try {
+            const mapData = JSON.parse(e.target.result);
+            loadMapData(mapData);
+        } catch (err) {
+            alert("Error loading map file: " + err.message);
+        }
+    };
+    reader.readAsText(file);
+}
+
+function loadMapData(mapData) {
+    if (!mapData.grid) {
+        alert("Invalid map file: no grid data found.");
+        return;
+    }
+
+    saveState();
+
+    editorState.grid = mapData.grid;
+    editorState.enemies = mapData.entities?.enemies || [];
+    editorState.civilians = mapData.entities?.civilians || [];
+    editorState.doors = mapData.entities?.doors || [];
+
+    if (mapData.metadata) {
+        document.getElementById("map-name").value = mapData.metadata.name || "";
+        document.getElementById("map-description").value = mapData.metadata.description || "";
+        document.getElementById("map-author").value = mapData.metadata.author || "";
+        document.getElementById("map-difficulty").value = mapData.metadata.difficulty || "";
+    }
+
+    render();
+    updateStats();
+}
+
+function saveToLocal() {
+    const mapData = createMapData();
+    localStorage.setItem("editorLevel", JSON.stringify(mapData));
+    alert("Map saved to browser storage!");
+}
+
+function loadFromLocal() {
+    const json = localStorage.getItem("editorLevel");
+    if (!json) {
+        alert("No saved map found in browser storage");
+        return;
+    }
+    try {
+        const mapData = JSON.parse(json);
+        loadMapData(mapData);
+        alert("Map loaded from browser storage");
+    } catch (err) {
+        alert("Error loading saved map: " + err.message);
+    }
+}
+
+function clearAll() {
+    if (confirm("Clear the entire map? You can use Ctrl+Z to undo.")) {
+        saveState();
+        initGrid();
+        render();
+        updateStats();
+    }
+}
+
+function addBorder() {
+    saveState();
+    for (let x = 0; x < GRID_WIDTH; x++) {
+        editorState.grid[0][x] = 1;
+        editorState.grid[GRID_HEIGHT - 1][x] = 1;
+    }
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+        editorState.grid[y][0] = 1;
+        editorState.grid[y][GRID_WIDTH - 1] = 1;
+    }
+    render();
+    updateStats();
+}
+
+canvas.addEventListener("mousedown", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const gridX = Math.floor(x / TILE_SIZE);
+    const gridY = Math.floor(y / TILE_SIZE);
+
+    if (e.button === 2) { //erase on right click
+        saveState();
+        eraseAt(gridX, gridY);
+        render();
+        updateStats();
+    } else if (e.button === 0) { //place on left
+        saveState();
+        placeElement(gridX, gridY);
+        editorState.isDrawing = true;
+    }
+});
+
+canvas.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const gridX = Math.floor(x / TILE_SIZE);
+    const gridY = Math.floor(y / TILE_SIZE);
+
+    document.getElementById("cursor-pos").textContent = `Position: (${gridX}, ${gridY})`;
+
+    if (editorState.isDrawing && editorState.currentTool !== "roomtool") {
+        placeElement(gridX, gridY);
+    }
+});
+
+canvas.addEventListener("mouseup", () => {
+    editorState.isDrawing = false;
+});
+
+canvas.addEventListener("mouseleave", () => {
+    editorState.isDrawing = false;
+});
+
+canvas.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+});
+
+document.querySelectorAll(".tool-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+        document.querySelectorAll(".tool-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        editorState.currentTool = btn.dataset.tool;
+        document.getElementById("current-tool").textContent = `Tool: ${btn.textContent.trim()}`;
+        editorState.roomCorner1 = null;
+    });
+});
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+});
+
+document.getElementById("clear-all").addEventListener("click", clearAll);
+document.getElementById("add-border").addEventListener("click", addBorder);
+document.getElementById("undo").addEventListener("click", undo);
+document.getElementById("export-map").addEventListener("click", exportMap);
+document.getElementById("import-map").addEventListener("click", () => {
+    document.getElementById("file-input").click();
+});
+document.getElementById("file-input").addEventListener("change", (e) => {
+    if (e.target.files.length > 0) {
+        importMap(e.target.files[0]);
+        e.target.value = "";
+    }
+});
+document.getElementById("save-local").addEventListener("click", saveToLocal);
+document.getElementById("load-local").addEventListener("click", loadFromLocal);
+document.getElementById("validate-map").addEventListener("click", validateMap);
+document.getElementById("back-to-game").addEventListener("click", () => {
+    window.location.href = "../index.html";
+});
+
+document.getElementById("fill-room").addEventListener("click", () => {
+    editorState.roomMode = "fill";
+    editorState.currentTool = "roomtool";
+    editorState.roomCorner1 = null;
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('[data-tool="roomtool"]').classList.add('active');
+    document.getElementById('current-tool').textContent = 'Tool: Fill Room';
+});
+
+document.getElementById("outline-room").addEventListener("click", () => {
+    editorState.roomMode = "outline";
+    editorState.roomCorner1 = null;
+    editorState.currentTool = "roomtool";
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('[data-tool="roomtool"]').classList.add('active');
+    document.getElementById('current-tool').textContent = 'Tool: Outline Room';
+});
+
+// Submit map for review
+document.getElementById("submit-review").addEventListener("click", async () => {
+    const statusDiv = document.getElementById("submit-status");
+    
+    // Validate map first
+    let hasSpawn = false;
+    let hasExit = false;
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+        for (let x = 0; x < GRID_WIDTH; x++) {
+            if (editorState.grid[y][x] === 2) hasSpawn = true;
+            if (editorState.grid[y][x] === 4) hasExit = true;
+        }
+    }
+    
+    if (!hasSpawn || !hasExit) {
+        statusDiv.innerHTML = '<span style="color: #f00;">❌ Map needs a spawn point AND an exit point!</span>';
+        return;
+    }
+    
+    const mapName = document.getElementById("map-name").value.trim();
+    if (!mapName || mapName === "Untitled Mission") {
+        statusDiv.innerHTML = '<span style="color: #f00;">❌ Please enter a map name!</span>';
+        return;
+    }
+    
+    statusDiv.innerHTML = '<span style="color: #ff0;">⏳ Submitting...</span>';
+    
+    const mapData = createMapData();
+    
+    try {
+        const res = await fetch('/api/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mapData })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            statusDiv.innerHTML = '<span style="color: #0f0;">✅ Map submitted for review! An admin will review it soon.</span>';
+        } else {
+            statusDiv.innerHTML = `<span style="color: #f00;">❌ ${data.error}</span>`;
+        }
+    } catch (e) {
+        statusDiv.innerHTML = '<span style="color: #f00;">❌ Server not available. Run "node server.js" to enable submissions.</span>';
+    }
+});
+
+document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && e.key === "z") {
+        e.preventDefault();
+        undo();
+    }
+    if (e.key === "Delete") {
+        clearAll();
+    }
+    if (e.ctrlKey && e.key === "s") {
+        e.preventDefault();
+        saveState();
+    }
+
+    const toolMap = {
+        "1": "wall",
+        "2": "floor",
+        "3": "cover",
+        "4": "door",
+        "5": "lockeddoor",
+        "6": "spawn",
+        "7": "exit",
+        "8": "enemy",
+        "9": "hostage"
+    };
+    if (toolMap[e.key]) {
+        editorState.currentTool = toolMap[e.key];
+        document.querySelectorAll('.tool-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.tool === toolMap[e.key]);
+        });
+        const btn = document.querySelector(`[data-tool="${toolMap[e.key]}"]`);
+        if (btn) {
+            document.getElementById('current-tool').textContent = `Tool: ${btn.textContent.trim()}`;
+        }
+    }
+});
+
+initGrid();
+render();
+updateStats();

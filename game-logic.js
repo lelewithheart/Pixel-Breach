@@ -35,7 +35,7 @@ const ctx = canvas.getContext("2d");
 function initGrid() {
     gameState.grid = [];
     for (let y = 0; y < GRID_HEIGHT; y++) {
-        gameState.grid[y] = [];;
+        gameState.grid[y] = [];
         for (let x = 0; x < GRID_WIDTH; x++) {
             // 0 = floor, 1 = wall, 2 = spawn, 3 = cover, 4 = exit
             if (x === 0 || x === GRID_WIDTH - 1 || y === 0 || y === GRID_HEIGHT - 1) {
@@ -149,7 +149,6 @@ function loadMission(missionId) {
     if (!mission) return;
 
     gameState.currentMission = mission;
-    initGrid();
     gameState.doors = [];
     gameState.enemies = [];
     gameState.civilians = [];
@@ -158,74 +157,59 @@ function loadMission(missionId) {
     gameState.particles = [];
     gameState.objectives.reachExtraction = false;
 
-    // Create mission-specific layouts
-    switch (missionId) {
-        case 1: // Basic Training
-            gameState.player = new Player(100, 100);
-            gameState.grid[5][35] = 4; // Extraction point
-            break;
-        case 2: // Weapons Training
-            gameState.player = new Player(100, 100);
-            gameState.enemies.push(new Enemy(400, 300));
-            gameState.enemies.push(new Enemy(600, 300));
-            gameState.enemies.push(new Enemy(500, 400));
-            gameState.grid[5][35] = 4; // Extraction point
-            break;
-        case 3: // Tactical Equipment
-            gameState.player = new Player(100, 100);
-            gameState.enemies.push(new Enemy(400, 300));
-            gameState.enemies.push(new Enemy(600, 250));
-            gameState.grid[5][35] = 4; // Extraction point
-            break;
-        case 4: // Breach and Clear
-            gameState.player = new Player(100, 100);
-            // Add locked doors
-            gameState.doors.push(new Door(300, 300, true));
-            gameState.doors.push(new Door(500, 300, true));
-            gameState.enemies.push(new Enemy(400, 400));
-            gameState.grid[5][35] = 4; // Extraction point
-            break;
-        case 5: // Hostage Rescue
-            gameState.player = new Player(100, 100);
-            gameState.enemies.push(new Enemy(400, 300));
-            gameState.enemies.push(new Enemy(600, 300));
-            gameState.civilians.push(new Civilian(550, 250));
-            gameState.civilians.push(new Civilian(450, 350));
-            gameState.grid[5][35] = 4; // Extraction point
-            break;
-        case 6: // Stealth Operations
-            gameState.player = new Player(100, 100);
-            gameState.enemies.push(new Enemy(300, 300));
-            gameState.enemies.push(new Enemy(500, 400));
-            gameState.doors.push(new Door(400, 200, false));
-            gameState.grid[5][35] = 4; // Extraction point
-            break;
-        case 7: // Urban Warfare
-            gameState.player = new Player(100, 100);
-            gameState.enemies.push(new Enemy(400, 300));
-            gameState.enemies.push(new Enemy(600, 300));
-            gameState.enemies.push(new Enemy(500, 500, 'heavy'));
-            gameState.civilians.push(new Civilian(550, 250));
-            gameState.civilians.push(new Civilian(450, 350));
-            gameState.civilians.push(new Civilian(650, 400));
-            gameState.doors.push(new Door(300, 300, true));
-            gameState.grid[5][35] = 4; // Extraction point
-            break;
-        case 8: // Final Exam
-            gameState.player = new Player(100, 100);
-            gameState.enemies.push(new Enemy(400, 300));
-            gameState.enemies.push(new Enemy(600, 300));
-            gameState.enemies.push(new Enemy(500, 400, 'heavy'));
-            gameState.enemies.push(new Enemy(700, 400));
-            gameState.civilians.push(new Civilian(550, 250));
-            gameState.civilians.push(new Civilian(450, 350));
-            gameState.doors.push(new Door(300, 300, true));
-            gameState.doors.push(new Door(500, 300, true));
-            gameState.grid[5][35] = 4; // Extraction point
-            break;
-        default:
-            createDefaultLevel();
-            break;
+    if (mission.mapData) {
+        if (!mission.mapData.grid) {
+            mission.mapData.grid = generateMissionGrid(mission);
+        }
+
+        gameState.grid = JSON.parse(JSON.stringify(mission.mapData.grid));
+
+        const spawn = mission.mapData.spawn || { x: 2, y: 2 };
+        const spawnX = spawn.x * TILE_SIZE + TILE_SIZE / 2;
+        const spawnY = spawn.y * TILE_SIZE + TILE_SIZE / 2;
+        gameState.player = new Player(spawnX, spawnY);
+
+        if (mission.mapData.entities) {
+            if (mission.mapData.entities.enemies) {
+                mission.mapData.entities.enemies.forEach(e => {
+                    const enemyX = e.x * TILE_SIZE + TILE_SIZE / 2;
+                    const enemyY = e.y * TILE_SIZE + TILE_SIZE / 2;
+                    gameState.enemies.push(new Enemy(enemyX, enemyY, e.type || "normal"));
+                });
+            }
+
+            if (mission.mapData.entities.civilians) {
+                mission.mapData.entities.civilians.forEach(c => {
+                    const civX = c.x * TILE_SIZE + TILSE_SIZE / 2;
+                    const civY = c.y * TILE_SIZE + TILE_SIZE / 2;
+                    gameState.civilians.push(new Civilian(civX, civY));
+                });
+            }
+
+            if (mission.mapData.entities.doors) {
+                mission.mapData.entities.doors.forEach(d => {
+                    const doorX = d.x * TILE_SIZE;
+                    const doorY = d.y * TILE_SIZE;
+                    gameState.doors.push(new Door(doorX, doorY, d.locked || false));
+                });
+            }
+        }
+
+        if (spawn.x >= 0 && spawn.x < GRID_WIDTH && spawn.y >= 0 && spawn.y < GRID_HEIGHT) {
+            gameState.grid[spawn.y][spawn.x] = 2;
+        }
+
+        let hasExit = false;
+        for (let y = 0; y < GRID_HEIGHT && !hasExit; y++) {
+            for (let x = 0; x < GRID_WIDTH && !hasExit; x++) {
+                if (gameState.grid[y][x] === 4) hasExit = true;
+            }
+        }
+        if (!hasExit) {
+            gameState.grid[GRID_HEIGHT - 4][GRID_WIDTH - 3] = 4;
+        }
+    } else {
+        createDefaultLevel();
     }
 
     updateUI();
@@ -507,12 +491,11 @@ function placeInEditor(x, y) {
 }
 
 function saveLevel() {
-    const levelData = {
-        grid: gameState.grid,
-        enemies: gameState.enemies.map(e => ({ x: e.x, y: e.y, type: e.type })),
-        civilians: gameState.civilians.map(c => ({ x: c.x, y: c.y })),
-        doors: gameState.doors.map(d => ({ x: d.x, y: d.y, locked: d.locked }))
-    };
+    const levelData = MapLoader.createMapData({
+        name: "Custom Level",
+        author: "Player",
+        difficulty: "medium"
+    });
 
     const json = JSON.stringify(levelData);
     localStorage.setItem('customLevel', json);
@@ -526,13 +509,69 @@ function loadLevel() {
         return;
     }
 
-    const levelData = JSON.parse(json);
-    gameState.grid = levelData.grid;
-    gameState.enemies = levelData.enemies.map(e => new Enemy(e.x, e.y, e.type));
-    gameState.civilians = levelData.civilians.map(c => new Civilian(c.x, c.y));
-    gameState.doors = levelData.doors ? levelData.doors.map(d => new Door(d.x, d.y, d.locked)) : [];
+    try {
+        const levelData = JSON.parse(json);
 
-    alert('Level loaded!');
+        gameState.doors = [];
+        gameState.enemies = [];
+        gameState.civilians = [];
+
+        MapLoader.loadMap(levelData);
+
+        updateUI();
+        alert('Level loaded!');
+    } catch (error) {
+        console.error("Error loading level: ", error);
+        alert("Error loading level!")
+    }
+}
+
+function loadLevelFromFile(file) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        try {
+            const mapData = JSON.parse(e.target.result);
+            loadLevelFromData(mapData);
+        } catch (error) {
+            console.error("Error loading map file:", error);
+            alert("Error loading map file: invalid format.");
+        }
+    };
+    reader.readAsText(file);
+}
+
+function loadLevelFromData(mapData) {
+    if (MapLoader.loadMap(mapData)) {
+        gameState.screen = "playing";
+        gameState.playing = true;
+        gameState.editorMode = false;
+        document.getElementById('home-screen').classList.remove('active');
+        document.getElementById('community-screen').classList.remove('active');
+        document.getElementById('game-container').style.display = 'flex';
+        document.getElementById('level-editor').classList.remove('active');
+        AudioSystem.playMusic("gameplay");
+    } else {
+        alert("Failed to load map.");
+    }
+}
+
+// Check for admin test mode on page load
+function checkAdminTestMode() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('adminTest') === 'true') {
+        const mapData = sessionStorage.getItem('adminTestMap');
+        if (mapData) {
+            try {
+                const parsed = JSON.parse(mapData);
+                // Small delay to ensure everything is loaded
+                setTimeout(() => {
+                    loadLevelFromData(parsed);
+                }, 100);
+            } catch (e) {
+                console.error('Failed to load admin test map:', e);
+            }
+        }
+    }
 }
 
 function clearLevel() {
