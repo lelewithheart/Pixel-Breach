@@ -2,52 +2,41 @@
 
 A detailed, tactical top-down SWAT shooter game playable in your web browser. Features realistic tactical gameplay, multiple weapon loadouts, enemy AI, hostage rescue mechanics, and a built-in level editor.
 
-## Features
+## 🚀 Quick Start
 
-### Tactical Gameplay
-- **Detailed Combat System**: Line of sight detection, cover mechanics, weapon spread, and damage models
-- **Stamina System**: Sprint management affects tactical positioning
-- **Stance System**: Switch between standing and crouched positions for different speed/visibility tradeoffs
-- **Lean Mechanics**: Lean left or right for tactical corner peeking
-- **Reload Management**: Manual reloading with limited ammunition
-- **Equipment Usage**: Tactical equipment including flashbangs, smoke grenades, breaching charges, and medkits
+### Standalone Play
+1. Open `index.html` in your web browser
+2. Select mission and configure loadout
+3. Complete objectives: eliminate enemies, rescue civilians, reach extraction
 
-### Loadout System
-**Primary Weapons:**
-- MP5 Submachine Gun (High ROF, moderate damage)
-- M4A1 Assault Rifle (Balanced stats)
-- M870 Shotgun (High damage, close range, spread pattern)
-- M24 Sniper Rifle (Extreme damage, slow ROF, high accuracy)
+### Full Features (with Server)
+```bash
+# Start community server
+node server.js
 
-**Secondary Weapons:**
-- M1911 Pistol (High damage, low capacity)
-- Glock 17 (Moderate damage, high capacity)
+# Open game
+http://localhost:3000
 
-**Equipment:**
-- Flashbang: Stun enemies in radius
-- Smoke Grenade: Create concealment
-- Breaching Charge: Destroy walls
-- Medkit: Restore health
+# Admin panel
+http://localhost:3000/admin.html
+```
 
-### Enemy AI
-- **Patrol Mode**: Enemies patrol and maintain awareness
-- **Detection System**: Enemies detect player based on line of sight and distance
-- **Engagement AI**: Tactical positioning and optimal engagement distances
-- **Different Types**: Standard enemies and heavy armor units
+## 🎮 Key Features
 
-### Objectives
-- Neutralize all hostile enemies
-- Rescue all hostages
-- Reach extraction point
-- Dynamic objective tracking
+- **Tactical Combat**: Cover system, weapon mechanics, realistic AI
+- **Loadout System**: Multiple weapons and equipment choices
+- **Level Editor**: Create and share custom missions
+- **Community Maps**: User-created content with review system
+- **Audio System**: 8-bit chiptune soundtrack and sound effects
+- **Cross-Platform**: Runs in any modern web browser
 
-### Level Editor
-- Place walls, floors, and cover
-- Position enemy spawn points
-- Place hostages/civilians
-- Set player spawn and extraction points
-- Save and load custom levels
-- Clear and rebuild levels from scratch
+## 🎯 Mission Objectives
+
+1. **Neutralize Hostiles** - Eliminate all enemy forces
+2. **Rescue Civilians** - Protect and escort hostages
+3. **Reach Extraction** - Get to the marked exit point
+
+Complete all objectives to achieve mission success!
 
 ### Tactical UI
 - Real-time health, armor, and stamina bars
