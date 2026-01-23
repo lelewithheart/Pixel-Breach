@@ -3,9 +3,9 @@ class Player {
         this.x = x;
         this.y = y;
         this.size = 16;
-        this.speed = 2;
-        this.sprintSpeed = 3.5;
-        this.crouchSpeed = 1;
+        this.speed = 1.5;
+        this.sprintSpeed = 2.5;
+        this.crouchSpeed = 0.8;
         this.health = 100;
         this.maxHealth = 100;
         this.armor = 100;
@@ -35,15 +35,19 @@ class Player {
 
     move(dx, dy) {
         let speed = this.speed;
-        if (keys['Shift'] && this.stamina > 0 && this.stance === "standing") {
+        const isMoving = dx !== 0 || dy !== 0;
+        const isSprinting = keys['Shift'] && this.stamina > 0 && this.stance === "standing" && isMoving;
+        
+        if (isSprinting) {
             speed = this.sprintSpeed;
-            this.stamina = Math.max(0, this.stamina - 0.5);
+            this.stamina = Math.max(0, this.stamina - 0.8);
         } else if (this.stance === "crouched") {
             speed = this.crouchSpeed;
         }
 
-        if (this.stamina < this.maxStamina && (!keys["Shift"] || this.stance !== "standing")) {
-            this.stamina = Math.min(this.maxStamina, this.stamina + 0.3);
+        // Regenerate stamina when not sprinting
+        if (!isSprinting && this.stamina < this.maxStamina) {
+            this.stamina = Math.min(this.maxStamina, this.stamina + 0.2);
         }
 
         const newX = this.x + dx * speed;
@@ -320,32 +324,45 @@ class Enemy {
         this.x = x;
         this.y = y;
         this.size = 16;
-        this.speed = 0.8;
-        this.health = type === "heavy" ? 150 : 100;
+        this.speed = type === "heavy" ? 1.2 : 1.0; // Increased speed to make them more challenging
+        this.health = type === "heavy" ? 150 : 100; // Increased health to match player
         this.maxHealth = this.health;
         this.type = type;
-        this.damage = type === "heavy" ? 25 : 15;
         this.angle = 0;
         this.state = "patrol"; //patrol, alert, engage, stunned
         this.patrolPoints = [];
         this.currentPatrolPoint = 0;
-        this.detectionRange = 200;
-        this.fireRange = 300;
+        this.detectionRange = 180; // Increased detection range
+        this.fireRange = 220; // Increased fire range
         this.canFire = true;
         this.stunned = false;
         this.lastSeenPlayerX = null;
         this.lastSeenPlayerY = null;
         this.optimalRange = type === "heavy" ? 100 : 150;
         this.reloading = false;
+        
+        // Random weapon loadout based on enemy type
+        const primaryWeapons = type === "heavy" 
+            ? ["m4a1", "shotgun"] 
+            : ["mp5", "m4a1", "glock"];
+        const secondaryWeapons = ["m1911", "glock"];
+        
+        const randomPrimary = primaryWeapons[Math.floor(Math.random() * primaryWeapons.length)];
+        const randomSecondary = secondaryWeapons[Math.floor(Math.random() * secondaryWeapons.length)];
+        
         this.weapons = {
-            primary: this.createWeapon("m4a1"),
-            secondary: this.createWeapon("glock")
+            primary: this.createWeapon(randomPrimary),
+            secondary: this.createWeapon(randomSecondary)
         };
-        this.currentWeapon = "primary"
+        this.currentWeapon = "primary";
+        
+        // Enemies now deal full weapon damage (no multiplier reduction)
+        this.damageMultiplier = 1.0; // Full damage like player
     }
 
     createWeapon(type) {
         const weapon = { ...WEAPONS[type] };
+        weapon.type = type; // Store weapon type for audio
         weapon.currentAmmo = weapon.magSize;
         weapon.reserveAmmo = weapon.totalAmmo;
         return weapon;
@@ -406,14 +423,16 @@ class Enemy {
         const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
 
         //move to optimal distance
-        if (distToPlayer < this.optimalRange) {
+        if (distToPlayer > this.optimalRange + 30) {
+            // Too far - move closer
             const dx = Math.cos(this.angle) * this.speed;
             const dy = Math.sin(this.angle) * this.speed;
             if (!this.checkCollision(this.x + dx, this.y + dy)) {
                 this.x += dx;
                 this.y += dy;
             }
-        } else if (distToPlayer < this.optimalRange - 50) {
+        } else if (distToPlayer < this.optimalRange - 30) {
+            // Too close - back away
             const dx = -Math.cos(this.angle) * this.speed;
             const dy = -Math.sin(this.angle) * this.speed;
             if (!this.checkCollision(this.x + dx, this.y + dy)) {
@@ -448,28 +467,40 @@ class Enemy {
         if (!this.canFire || this.reloading) return;
 
         const weapon = this.weapons[this.currentWeapon];
+        
+        // Check ammo and reload if needed
         if (weapon.currentAmmo <= 0) {
-            if (weapon.reserveAmmo <= 0) {
-                this.currentWeapon = "secondary"
+            if (weapon.reserveAmmo <= 0 && this.currentWeapon === "primary") {
+                // Switch to secondary if primary is empty
+                this.currentWeapon = "secondary";
+                return;
+            } else if (weapon.reserveAmmo <= 0) {
+                // Both weapons empty, can't shoot
                 return;
             }
             this.reload();
+            return; // Don't shoot while starting reload
         }
 
         weapon.currentAmmo--;
         this.canFire = false;
-        setTimeout(() => this.canFire = true, weapon.fireRate);
+        setTimeout(() => this.canFire = true, weapon.fireRate * 0.8); // Enemies shoot 20% faster
+
+        // Calculate damage based on weapon and enemy multiplier
+        const damage = Math.floor(weapon.damage * this.damageMultiplier);
 
         const pellets = weapon.pellets || 1;
         for (let i = 0; i < pellets; i++) {
-            const spread = (Math.random() - 0.5) * weapon.spread;
+            const spread = (Math.random() - 0.5) * weapon.spread * 1.5; // Slightly less accurate than player but still challenging
             const bulletAngle = this.angle + spread;
 
             gameState.bullets.push(new Bullet(
-                this.x, this.y, bulletAngle, weapon.damage, "enemy"
+                this.x, this.y, bulletAngle, damage, "enemy"
             ));
-            AudioSystem.playGunshot("m1911")
         }
+        
+        // Play weapon-appropriate sound
+        AudioSystem.playGunshot(weapon.type);
 
         for (let i = 0; i < 3; i++) {
             gameState.particles.push(new Particle(
@@ -478,8 +509,6 @@ class Enemy {
                 'rgba(255, 255, 0, 0.35)', 200
             ));
         }
-
-        updateUI();
     }
 
     reload() {
@@ -489,14 +518,15 @@ class Enemy {
         if (weapon.currentAmmo === weapon.magSize || weapon.reserveAmmo === 0) return;
 
         this.reloading = true;
+        // Enemies reload slightly slower than players
+        const reloadTime = RELOAD_TIME_MS * 1.3;
         setTimeout(() => {
             const ammoNeeded = weapon.magSize - weapon.currentAmmo;
             const ammoToReload = Math.min(ammoNeeded, weapon.reserveAmmo);
             weapon.currentAmmo += ammoToReload;
             weapon.reserveAmmo -= ammoToReload;
             this.reloading = false;
-            updateUI();
-        }, RELOAD_TIME_MS);
+        }, reloadTime);
     }
 
     hasLineOfSight(targetX, targetY) {

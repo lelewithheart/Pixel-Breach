@@ -415,11 +415,12 @@ function checkObjectives() {
         }
         setTimeout(() => {
             alert('MISSION SUCCESS!\n\nAll objectives completed!');
-            if (gameState.currentMission) {
-                loadMission(gameState.currentMission.id);
-            } else {
-                createDefaultLevel();
-            }
+            // Return to menu instead of reloading the level
+            gameState.playing = false;
+            gameState.editorMode = false;
+            document.getElementById('game-container').style.display = 'none';
+            document.getElementById('home-screen').classList.add('active');
+            AudioSystem.playMusic("menu");
         }, VICTORY_DELAY_MS);
     }
 }
@@ -433,11 +434,12 @@ function gameOver() {
         keys[key] = false;
     }
     alert('MISSION FAILED\n\nYou have been eliminated.');
-    if (gameState.currentMission) {
-        loadMission(gameState.currentMission.id);
-    } else {
-        createDefaultLevel();
-    }
+    // Return to menu instead of reloading the level
+    gameState.playing = false;
+    gameState.editorMode = false;
+    document.getElementById('game-container').style.display = 'none';
+    document.getElementById('home-screen').classList.add('active');
+    AudioSystem.playMusic("menu");
 }
 
 // Level Editor

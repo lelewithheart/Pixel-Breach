@@ -468,7 +468,7 @@ const AudioSystem = {
             if (noteData.note !== "rest") {
                 const freq = this.noteFrequencies[noteData.note];
                 if (freq) {
-                    this.scheduleMusicNote(freq, melodyTime, noteData.duration * beatDuration, "square", 0.5);
+                    this.scheduleMusicNote(freq, melodyTime, noteData.duration * beatDuration, "square", 0.5, 'melody');
                 }
             }
             melodyTime += noteData.duration * beatDuration;
@@ -479,7 +479,7 @@ const AudioSystem = {
             if (noteData.note !== "rest") {
                 const freq = this.noteFrequencies[noteData.note];
                 if (freq) {
-                    this.scheduleMusicNote(freq, bassTime, noteData.duration * beatDuration * 0.9, "triangle", 0.4);
+                    this.scheduleMusicNote(freq, bassTime, noteData.duration * beatDuration * 0.9, "triangle", 0.4, 'bass');
                 }
             }
             bassTime += noteData.duration * beatDuration;
@@ -494,7 +494,7 @@ const AudioSystem = {
         }, loopDuration * 1000);
     },
 
-    scheduleMusicNote(frequency, startTime, duration, type, volume) {
+    scheduleMusicNote(frequency, startTime, duration, type, volume, sourceType = 'melody') {
         if (!this.context || !this.initialized) return;
 
         const osc = this.context.createOscillator();
@@ -513,6 +513,15 @@ const AudioSystem = {
 
         osc.start(startTime);
         osc.stop(startTime + duration);
+
+        // Store the oscillator for cleanup
+        if (this.currentMusic) {
+            if (sourceType === 'bass') {
+                this.currentMusic.bassSources.push(osc);
+            } else {
+                this.currentMusic.melodySources.push(osc);
+            }
+        }
     },
 
     stopMusic() {
@@ -521,6 +530,21 @@ const AudioSystem = {
             if (this.currentMusic.loopTimeout) {
                 clearTimeout(this.currentMusic.loopTimeout);
             }
+            // Stop all currently playing oscillators
+            this.currentMusic.melodySources.forEach(osc => {
+                try {
+                    osc.stop();
+                } catch (e) {
+                    // Oscillator might already be stopped
+                }
+            });
+            this.currentMusic.bassSources.forEach(osc => {
+                try {
+                    osc.stop();
+                } catch (e) {
+                    // Oscillator might already be stopped
+                }
+            });
             this.currentMusic = null;
         }
     },
