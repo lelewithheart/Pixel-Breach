@@ -174,13 +174,17 @@ function loadMission(missionId) {
                 mission.mapData.entities.enemies.forEach(e => {
                     const enemyX = e.x * TILE_SIZE + TILE_SIZE / 2;
                     const enemyY = e.y * TILE_SIZE + TILE_SIZE / 2;
-                    gameState.enemies.push(new Enemy(enemyX, enemyY, e.type || "normal"));
+                    const enemy = new Enemy(enemyX, enemyY, e.type || "normal");
+                    if (e.patrolPoints) {
+                        enemy.patrolPoints = e.patrolPoints;
+                    }
+                    gameState.enemies.push(enemy);
                 });
             }
 
             if (mission.mapData.entities.civilians) {
                 mission.mapData.entities.civilians.forEach(c => {
-                    const civX = c.x * TILE_SIZE + TILSE_SIZE / 2;
+                    const civX = c.x * TILE_SIZE + TILE_SIZE / 2;
                     const civY = c.y * TILE_SIZE + TILE_SIZE / 2;
                     gameState.civilians.push(new Civilian(civX, civY));
                 });

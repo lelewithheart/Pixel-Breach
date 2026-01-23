@@ -470,104 +470,118 @@ class Enemy {
                 // Reached current patrol point, move to next
                 this.currentPatrolPoint = (this.currentPatrolPoint + 1) % this.patrolPoints.length;
             } else {
-                // Move towards current patrol point
-                const path = this.findPath(targetX, targetY);
-                if (path.length > 0) {
-                    const nextWaypoint = path[0];
-                    this.angle = Math.atan2(nextWaypoint.y - this.y, nextWaypoint.x - this.x);
+                // Move directly towards current patrol point
+                this.angle = Math.atan2(targetY - this.y, targetX - this.x);
 
-                    const dx = Math.cos(this.angle) * this.speed;
-                    const dy = Math.sin(this.angle) * this.speed;
-                    if (!this.checkCollision(this.x + dx, this.y + dy)) {
-                        this.x += dx;
-                        this.y += dy;
-                    }
+                const dx = Math.cos(this.angle) * this.speed;
+                const dy = Math.sin(this.angle) * this.speed;
+                if (!this.checkCollision(this.x + dx, this.y + dy)) {
+                    this.x += dx;
+                    this.y += dy;
                 }
             }
         }
     }
 
     findPath(targetX, targetY) {
-        const path = [];
-        let currentX = this.x;
-        let currentY = this.y;
-        const stepDistance = 10; // Check every 10 pixels along path
-        const minDistance = 5; // Stop when within 5 pixels of target
+        // Convert world coordinates to grid coordinates
+        const startGridX = Math.floor(this.x / TILE_SIZE);
+        const startGridY = Math.floor(this.y / TILE_SIZE);
+        const targetGridX = Math.floor(targetX / TILE_SIZE);
+        const targetGridY = Math.floor(targetY / TILE_SIZE);
 
-        while (Math.hypot(targetX - currentX, targetY - currentY) > minDistance) {
-            const angle = Math.atan2(targetY - currentY, targetX - currentX);
-            const distance = Math.hypot(targetX - currentX, targetY - currentY);
+        // A* pathfinding
+        const openSet = [];
+        const closedSet = new Set();
+        const cameFrom = new Map();
+        const gScore = new Map();
+        const fScore = new Map();
 
-            // Try straight line
-            let clearDistance = 0;
-            for (let d = 0; d <= distance; d += stepDistance) {
-                const checkX = currentX + Math.cos(angle) * d;
-                const checkY = currentY + Math.sin(angle) * d;
-                if (this.checkCollision(checkX, checkY)) {
-                    break;
+        const startKey = `${startGridX},${startGridY}`;
+        const targetKey = `${targetGridX},${targetGridY}`;
+
+        openSet.push({ x: startGridX, y: startGridY, key: startKey });
+        gScore.set(startKey, 0);
+        fScore.set(startKey, this.heuristic(startGridX, startGridY, targetGridX, targetGridY));
+
+        while (openSet.length > 0) {
+            // Find node with lowest fScore
+            let current = openSet[0];
+            let currentIndex = 0;
+            for (let i = 1; i < openSet.length; i++) {
+                if (fScore.get(openSet[i].key) < fScore.get(current.key)) {
+                    current = openSet[i];
+                    currentIndex = i;
                 }
-                clearDistance = d;
             }
 
-            if (clearDistance >= distance) {
-                // Straight path is clear, go directly to target
-                path.push({ x: targetX, y: targetY });
-                break;
-            } else {
-                // Hit obstacle, go to last clear point
-                const clearX = currentX + Math.cos(angle) * clearDistance;
-                const clearY = currentY + Math.sin(angle) * clearDistance;
+            if (current.key === targetKey) {
+                // Reconstruct path
+                return this.reconstructPath(cameFrom, current, targetX, targetY);
+            }
 
-                // From clear point, find next direction
-                const nextPoint = this.nextPoint(clearX, clearY, targetX, targetY, angle);
-                if (!nextPoint) {
-                    // No path found
-                    break;
+            openSet.splice(currentIndex, 1);
+            closedSet.add(current.key);
+
+            // Check neighbors (4-directional movement)
+            const neighbors = [
+                { x: current.x + 1, y: current.y },
+                { x: current.x - 1, y: current.y },
+                { x: current.x, y: current.y + 1 },
+                { x: current.x, y: current.y - 1 }
+            ];
+
+            for (const neighbor of neighbors) {
+                const neighborKey = `${neighbor.x},${neighbor.y}`;
+
+                if (closedSet.has(neighborKey)) continue;
+
+                // Check if neighbor is valid (not a wall and within bounds)
+                if (neighbor.x < 0 || neighbor.x >= GRID_WIDTH || neighbor.y < 0 || neighbor.y >= GRID_HEIGHT) continue;
+                if (gameState.grid[neighbor.y][neighbor.x] === 1 || gameState.grid[neighbor.y][neighbor.x] === 3) continue;
+
+                const tentativeGScore = gScore.get(current.key) + 1;
+
+                if (!openSet.find(n => n.key === neighborKey)) {
+                    openSet.push({ x: neighbor.x, y: neighbor.y, key: neighborKey });
+                } else if (tentativeGScore >= (gScore.get(neighborKey) || Infinity)) {
+                    continue;
                 }
 
-                path.push(nextPoint);
-                currentX = nextPoint.x;
-                currentY = nextPoint.y;
+                cameFrom.set(neighborKey, current);
+                gScore.set(neighborKey, tentativeGScore);
+                fScore.set(neighborKey, tentativeGScore + this.heuristic(neighbor.x, neighbor.y, targetGridX, targetGridY));
             }
         }
 
+        // No path found, return direct path to target
+        return [{ x: targetX, y: targetY }];
+    }
+
+    heuristic(x1, y1, x2, y2) {
+        // Manhattan distance
+        return Math.abs(x1 - x2) + Math.abs(y1 - y2);
+    }
+
+    reconstructPath(cameFrom, current, targetX, targetY) {
+        const path = [];
+        let currentKey = current.key;
+
+        while (cameFrom.has(currentKey)) {
+            const node = cameFrom.get(currentKey);
+            // Convert grid coordinates back to world coordinates (center of tile)
+            const worldX = node.x * TILE_SIZE + TILE_SIZE / 2;
+            const worldY = node.y * TILE_SIZE + TILE_SIZE / 2;
+            path.unshift({ x: worldX, y: worldY });
+            currentKey = node.key;
+        }
+
+        // Add final target
+        path.push({ x: targetX, y: targetY });
         return path;
     }
 
-    nextPoint(startX, startY, endX, endY, idealAngle) {
-        const scanRange = Math.PI / 3; // Scan 60 degrees up and down
-        const stepAngle = Math.PI / 180; // 1 degree steps
-        const moveDistance = 40; // Try moving 40 pixels in new direction
 
-        // First try the ideal angle
-        const idealX = startX + Math.cos(idealAngle) * moveDistance;
-        const idealY = startY + Math.sin(idealAngle) * moveDistance;
-        if (!this.checkCollision(idealX, idealY)) {
-            return { x: idealX, y: idealY };
-        }
-
-        // Scan angles from ideal - range to ideal + range
-        for (let offset = stepAngle; offset <= scanRange; offset += stepAngle) {
-            // Try clockwise (positive offset)
-            const angle1 = idealAngle + offset;
-            const x1 = startX + Math.cos(angle1) * moveDistance;
-            const y1 = startY + Math.sin(angle1) * moveDistance;
-            if (!this.checkCollision(x1, y1)) {
-                return { x: x1, y: y1 };
-            }
-
-            // Try counter-clockwise (negative offset)
-            const angle2 = idealAngle - offset;
-            const x2 = startX + Math.cos(angle2) * moveDistance;
-            const y2 = startY + Math.sin(angle2) * moveDistance;
-            if (!this.checkCollision(x2, y2)) {
-                return { x: x2, y: y2 };
-            }
-        }
-
-        // No clear direction found
-        return null;
-    }
 
     shoot() {
         if (!this.canFire || this.reloading) return;

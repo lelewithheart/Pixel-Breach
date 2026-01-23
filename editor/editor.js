@@ -13,7 +13,8 @@ const editorState = {
     maxUndo: 50,
     isDrawing: false,
     roomCorner1: null, //for room painter
-    roomMode: null //"fill" or "outline"
+    roomMode: null, //"fill" or "outline"
+    selectedEnemy: null // Index of selected enemy for pathfinding
 };
 
 const canvas = document.getElementById("editorCanvas");
@@ -38,6 +39,7 @@ function initGrid() {
     editorState.civilians = [];
     editorState.doors = [];
     editorState.patrolPoints = [];
+    editorState.selectedEnemy = null;
 }
 
 function saveState() {
@@ -46,7 +48,8 @@ function saveState() {
         enemies: JSON.parse(JSON.stringify(editorState.enemies)),
         civilians: JSON.parse(JSON.stringify(editorState.civilians)),
         doors: JSON.parse(JSON.stringify(editorState.doors)),
-        patrolPoints: JSON.parse(JSON.stringify(editorState.patrolPoints))
+        patrolPoints: JSON.parse(JSON.stringify(editorState.patrolPoints)),
+        selectedEnemy: editorState.selectedEnemy
     };
     editorState.undoStack.push(state);
     if (editorState.undoStack.length > editorState.maxUndo) {
@@ -61,6 +64,8 @@ function undo() {
         editorState.enemies = state.enemies;
         editorState.civilians = state.civilians;
         editorState.doors = state.doors;
+        editorState.patrolPoints = state.patrolPoints;
+        editorState.selectedEnemy = state.selectedEnemy;
         render();
         updateStats();
     }
@@ -129,19 +134,33 @@ function placeElement(gridX, gridY) {
             }
             break;
         case 'patrolpoint':
-            // Find nearest enemy
-            let nearestEnemy = null;
-            let minDistance = Infinity;
-            editorState.enemies.forEach((enemy, index) => {
-                const dist = Math.hypot(enemy.x - gridX, enemy.y - gridY);
-                if (dist < minDistance) {
-                    minDistance = dist;
-                    nearestEnemy = { enemy, index };
+            if (editorState.selectedEnemy !== null && editorState.selectedEnemy < editorState.enemies.length) {
+                editorState.enemies[editorState.selectedEnemy].patrolPoints.push({ x: gridX, y: gridY });
+            } else {
+                // Fallback to old behavior if no enemy selected
+                let nearestEnemy = null;
+                let minDistance = Infinity;
+                editorState.enemies.forEach((enemy, index) => {
+                    const dist = Math.hypot(enemy.x - gridX, enemy.y - gridY);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        nearestEnemy = { enemy, index };
+                    }
+                });
+                if (nearestEnemy && minDistance < 10) { // Within 10 tiles
+                    nearestEnemy.enemy.patrolPoints.push({ x: gridX, y: gridY });
                 }
-            });
-            if (nearestEnemy && minDistance < 10) { // Within 10 tiles
-                nearestEnemy.enemy.patrolPoints.push({ x: gridX, y: gridY });
             }
+            break;
+        case 'select':
+            // Select enemy at this position
+            const enemyAtPos = editorState.enemies.findIndex(e => e.x === gridX && e.y === gridY);
+            if (enemyAtPos !== -1) {
+                editorState.selectedEnemy = enemyAtPos;
+            } else {
+                editorState.selectedEnemy = null;
+            }
+            updateToolDisplay();
             break;
         case 'erase':
             eraseAt(gridX, gridY);
@@ -194,9 +213,23 @@ function eraseAt(gridX, gridY) {
 }
 
 function removeEntitiesAt(gridX, gridY) {
+    // Store the position of the selected enemy before removal
+    let selectedEnemyPos = null;
+    if (editorState.selectedEnemy !== null && editorState.selectedEnemy < editorState.enemies.length) {
+        const selectedEnemy = editorState.enemies[editorState.selectedEnemy];
+        selectedEnemyPos = { x: selectedEnemy.x, y: selectedEnemy.y };
+    }
+    
     editorState.enemies = editorState.enemies.filter(e => e.x !== gridX || e.y !== gridY);
     editorState.civilians = editorState.civilians.filter(c => c.x !== gridX || c.y !== gridY);
     editorState.doors = editorState.doors.filter(d => d.x !== gridX || d.y !== gridY);
+    
+    // Update selectedEnemy index
+    if (selectedEnemyPos !== null) {
+        const newIndex = editorState.enemies.findIndex(e => e.x === selectedEnemyPos.x && e.y === selectedEnemyPos.y);
+        editorState.selectedEnemy = newIndex;
+    }
+    
     // Remove patrol points at this location
     editorState.enemies.forEach(enemy => {
         enemy.patrolPoints = enemy.patrolPoints.filter(p => p.x !== gridX || p.y !== gridY);
@@ -247,9 +280,18 @@ function render() {
         }
     });
 
-    editorState.enemies.forEach(e => {
+    editorState.enemies.forEach((e, index) => {
         ctx.fillStyle = e.type === "heavy" ? "#a00" : "#f00";
         ctx.fillRect(e.x * TILE_SIZE + 2, e.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+        
+        // Highlight selected enemy
+        if (editorState.selectedEnemy === index) {
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(e.x * TILE_SIZE + 1, e.y * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+            ctx.lineWidth = 1;
+        }
+        
         ctx.fillStyle = "#fff"
         ctx.font = "10px monospace";
         ctx.fillText(e.type === "heavy" ? "H" : "E", e.x * TILE_SIZE + 6, e.y * TILE_SIZE + 13);
@@ -258,11 +300,14 @@ function render() {
         e.patrolPoints.forEach((point, index) => {
             ctx.fillStyle = "#0ff";
             ctx.beginPath();
-            ctx.arc(point.x * TILE_SIZE + TILE_SIZE / 2, point.y * TILE_SIZE + TILE_SIZE / 2, 4, 0, Math.PI * 2);
+            ctx.arc(point.x * TILE_SIZE + TILE_SIZE / 2, point.y * TILE_SIZE + TILE_SIZE / 2, 6, 0, Math.PI * 2);
             ctx.fill();
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 1;
+            ctx.stroke();
             ctx.fillStyle = "#000";
-            ctx.font = "8px monospace";
-            ctx.fillText((index + 1).toString(), point.x * TILE_SIZE + TILE_SIZE / 2 - 2, point.y * TILE_SIZE + TILE_SIZE / 2 + 2);
+            ctx.font = "10px monospace";
+            ctx.fillText((index + 1).toString(), point.x * TILE_SIZE + TILE_SIZE / 2 - 3, point.y * TILE_SIZE + TILE_SIZE / 2 + 3);
         });
     });
 
@@ -327,7 +372,7 @@ function renderMinimap() {
         // Draw patrol points
         e.patrolPoints.forEach(point => {
             minimapCtx.fillStyle = "#0ff";
-            minimapCtx.fillRect(point.x * TILE_SIZE * actualScale - 1, point.y * TILE_SIZE * actualScale - 1, 2, 2);
+            minimapCtx.fillRect(point.x * TILE_SIZE * actualScale - 1, point.y * TILE_SIZE * actualScale - 1, 3, 3);
         });
     });
 
@@ -337,8 +382,18 @@ function renderMinimap() {
     });
 }
 
+function updateToolDisplay() {
+    const btn = document.querySelector(`[data-tool="${editorState.currentTool}"]`);
+    if (btn) {
+        let toolText = btn.textContent.trim();
+        if (editorState.selectedEnemy !== null && editorState.currentTool === "patrolpoint") {
+            toolText += ` (Enemy ${editorState.selectedEnemy + 1})`;
+        }
+        document.getElementById('current-tool').textContent = `Tool: ${toolText}`;
+    }
+}
+
 function updateStats() {
-    const normalEnemies = editorState.enemies.filter(e => e.type === "normal").length;
     const heavyEnemies = editorState.enemies.filter(e => e.type === "heavy").length;
     const lockedDoors = editorState.doors.filter(d => d.locked).length;
     const unlockedDoors = editorState.doors.filter(d => !d.locked).length;
@@ -490,6 +545,7 @@ function loadMapData(mapData) {
     }));
     editorState.civilians = mapData.entities?.civilians || [];
     editorState.doors = mapData.entities?.doors || [];
+    editorState.selectedEnemy = null;
 
     if (mapData.metadata) {
         document.getElementById("map-name").value = mapData.metadata.name || "";
@@ -596,7 +652,7 @@ document.querySelectorAll(".tool-btn").forEach(btn => {
         document.querySelectorAll(".tool-btn").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
         editorState.currentTool = btn.dataset.tool;
-        document.getElementById("current-tool").textContent = `Tool: ${btn.textContent.trim()}`;
+        updateToolDisplay();
         editorState.roomCorner1 = null;
     });
 });
@@ -636,7 +692,7 @@ document.getElementById("fill-room").addEventListener("click", () => {
     editorState.roomCorner1 = null;
     document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('[data-tool="roomtool"]').classList.add('active');
-    document.getElementById('current-tool').textContent = 'Tool: Fill Room';
+    updateToolDisplay();
 });
 
 document.getElementById("outline-room").addEventListener("click", () => {
@@ -645,7 +701,7 @@ document.getElementById("outline-room").addEventListener("click", () => {
     editorState.currentTool = "roomtool";
     document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('[data-tool="roomtool"]').classList.add('active');
-    document.getElementById('current-tool').textContent = 'Tool: Outline Room';
+    updateToolDisplay();
 });
 
 // Submit map for review
@@ -718,18 +774,16 @@ document.addEventListener("keydown", (e) => {
         "6": "spawn",
         "7": "exit",
         "8": "enemy",
-        "9": "hostage",
-        "0": "patrolpoint"
+        "9": "select",
+        "0": "patrolpoint",
+        "h": "hostage"
     };
     if (toolMap[e.key]) {
         editorState.currentTool = toolMap[e.key];
         document.querySelectorAll('.tool-btn').forEach(b => {
             b.classList.toggle('active', b.dataset.tool === toolMap[e.key]);
         });
-        const btn = document.querySelector(`[data-tool="${toolMap[e.key]}"]`);
-        if (btn) {
-            document.getElementById('current-tool').textContent = `Tool: ${btn.textContent.trim()}`;
-        }
+        updateToolDisplay();
     }
 });
 
