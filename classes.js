@@ -37,7 +37,7 @@ class Player {
         let speed = this.speed;
         const isMoving = dx !== 0 || dy !== 0;
         const isSprinting = keys['Shift'] && this.stamina > 0 && this.stance === "standing" && isMoving;
-        
+
         if (isSprinting) {
             speed = this.sprintSpeed;
             this.stamina = Math.max(0, this.stamina - 0.8);
@@ -340,22 +340,22 @@ class Enemy {
         this.lastSeenPlayerY = null;
         this.optimalRange = type === "heavy" ? 100 : 150;
         this.reloading = false;
-        
+
         // Random weapon loadout based on enemy type
-        const primaryWeapons = type === "heavy" 
-            ? ["m4a1", "shotgun"] 
+        const primaryWeapons = type === "heavy"
+            ? ["m4a1", "shotgun"]
             : ["mp5", "m4a1", "glock"];
         const secondaryWeapons = ["m1911", "glock"];
-        
+
         const randomPrimary = primaryWeapons[Math.floor(Math.random() * primaryWeapons.length)];
         const randomSecondary = secondaryWeapons[Math.floor(Math.random() * secondaryWeapons.length)];
-        
+
         this.weapons = {
             primary: this.createWeapon(randomPrimary),
             secondary: this.createWeapon(randomSecondary)
         };
         this.currentWeapon = "primary";
-        
+
         // Enemies now deal full weapon damage (no multiplier reduction)
         this.damageMultiplier = 1.0; // Full damage like player
     }
@@ -463,9 +463,9 @@ class Enemy {
             const currentPoint = this.patrolPoints[this.currentPatrolPoint];
             const targetX = currentPoint.x * TILE_SIZE + TILE_SIZE / 2;
             const targetY = currentPoint.y * TILE_SIZE + TILE_SIZE / 2;
-            
+
             const distToPoint = Math.hypot(targetX - this.x, targetY - this.y);
-            
+
             if (distToPoint < 10) {
                 // Reached current patrol point, move to next
                 this.currentPatrolPoint = (this.currentPatrolPoint + 1) % this.patrolPoints.length;
@@ -475,7 +475,7 @@ class Enemy {
                 if (path.length > 0) {
                     const nextWaypoint = path[0];
                     this.angle = Math.atan2(nextWaypoint.y - this.y, nextWaypoint.x - this.x);
-                    
+
                     const dx = Math.cos(this.angle) * this.speed;
                     const dy = Math.sin(this.angle) * this.speed;
                     if (!this.checkCollision(this.x + dx, this.y + dy)) {
@@ -487,7 +487,7 @@ class Enemy {
         }
     }
 
-    findPath(targetX, targetY){
+    findPath(targetX, targetY) {
         const path = [];
         let currentX = this.x;
         let currentY = this.y;
@@ -497,7 +497,7 @@ class Enemy {
         while (Math.hypot(targetX - currentX, targetY - currentY) > minDistance) {
             const angle = Math.atan2(targetY - currentY, targetX - currentX);
             const distance = Math.hypot(targetX - currentX, targetY - currentY);
-            
+
             // Try straight line
             let clearDistance = 0;
             for (let d = 0; d <= distance; d += stepDistance) {
@@ -508,44 +508,44 @@ class Enemy {
                 }
                 clearDistance = d;
             }
-            
+
             if (clearDistance >= distance) {
                 // Straight path is clear, go directly to target
-                path.push({x: targetX, y: targetY});
+                path.push({ x: targetX, y: targetY });
                 break;
             } else {
                 // Hit obstacle, go to last clear point
                 const clearX = currentX + Math.cos(angle) * clearDistance;
                 const clearY = currentY + Math.sin(angle) * clearDistance;
-                
+
                 // From clear point, find next direction
                 const nextPoint = this.nextPoint(clearX, clearY, targetX, targetY, angle);
                 if (!nextPoint) {
                     // No path found
                     break;
                 }
-                
+
                 path.push(nextPoint);
                 currentX = nextPoint.x;
                 currentY = nextPoint.y;
             }
         }
-        
+
         return path;
     }
 
-    nextPoint(startX, startY, endX, endY, idealAngle){
+    nextPoint(startX, startY, endX, endY, idealAngle) {
         const scanRange = Math.PI / 3; // Scan 60 degrees up and down
         const stepAngle = Math.PI / 180; // 1 degree steps
         const moveDistance = 40; // Try moving 40 pixels in new direction
-        
+
         // First try the ideal angle
         const idealX = startX + Math.cos(idealAngle) * moveDistance;
         const idealY = startY + Math.sin(idealAngle) * moveDistance;
         if (!this.checkCollision(idealX, idealY)) {
-            return {x: idealX, y: idealY};
+            return { x: idealX, y: idealY };
         }
-        
+
         // Scan angles from ideal - range to ideal + range
         for (let offset = stepAngle; offset <= scanRange; offset += stepAngle) {
             // Try clockwise (positive offset)
@@ -553,18 +553,18 @@ class Enemy {
             const x1 = startX + Math.cos(angle1) * moveDistance;
             const y1 = startY + Math.sin(angle1) * moveDistance;
             if (!this.checkCollision(x1, y1)) {
-                return {x: x1, y: y1};
+                return { x: x1, y: y1 };
             }
-            
+
             // Try counter-clockwise (negative offset)
             const angle2 = idealAngle - offset;
             const x2 = startX + Math.cos(angle2) * moveDistance;
             const y2 = startY + Math.sin(angle2) * moveDistance;
             if (!this.checkCollision(x2, y2)) {
-                return {x: x2, y: y2};
+                return { x: x2, y: y2 };
             }
         }
-        
+
         // No clear direction found
         return null;
     }
@@ -573,7 +573,7 @@ class Enemy {
         if (!this.canFire || this.reloading) return;
 
         const weapon = this.weapons[this.currentWeapon];
-        
+
         // Check ammo and reload if needed
         if (weapon.currentAmmo <= 0) {
             if (weapon.reserveAmmo <= 0 && this.currentWeapon === "primary") {
@@ -604,7 +604,7 @@ class Enemy {
                 this.x, this.y, bulletAngle, damage, "enemy"
             ));
         }
-        
+
         // Play weapon-appropriate sound
         AudioSystem.playGunshot(weapon.type);
 
@@ -1010,6 +1010,12 @@ class Bullet {
                 const dist = Math.hypot(civilian.x - this.x, civilian.y - this.y);
                 if (dist < civilian.size / 2) {
                     civilian.takeDamage(this.damage);
+                    if (civilian.dead) {
+                        gameState.playing = false;
+                        setTimeout(() => {
+                            alert("MISSION FAILED\n\nYou killed a Hostage!");
+                        }, MISSION_FAILURE_ALERT_DELAY);
+                    }
                     this.lifetime = 0;
                     //Particles
                     for (let i = 0; i < 5; i++) {
@@ -1031,7 +1037,21 @@ class Bullet {
                 }
             }
 
-            //Enemys killing Civilians reducing the overall score, but not ending the mission instantly - TODO
+            gameState.civilians.forEach(civilian => {
+                const dist = Math.hypot(civilian.x - this.x, civilian.y - this.y);
+                if (dist < civilian.size / 2) {
+                    civilian.takeDamage(this.damage);
+                    this.lifetime = 0;
+                    //Particles
+                    for (let i = 0; i < 5; i++) {
+                        gameState.particles.push(new Particle(
+                            civilian.x + (Math.random() - 0.5) * 10,
+                            civilian.y + (Math.random() - 0.5) * 10,
+                            "#f00", 800
+                        ));
+                    }
+                }
+            });
         }
 
         return this.lifetime > 0;
