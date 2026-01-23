@@ -214,8 +214,10 @@ function loadMission(missionId) {
 
     updateUI();
     gameState.screen = 'playing';
-    gameState.playing = true;
+    // Don't set playing = true here - wait for START GAME button
+    // gameState.playing = true;
     document.getElementById('level-select-screen').classList.remove('active');
+    document.getElementById('community-screen').classList.remove('active');
     document.getElementById('game-container').style.display = 'flex';
 }
 
@@ -247,12 +249,16 @@ function gameLoop() {
         })
 
         gameState.civilians.forEach(c => {
-            c.update();
+            if (gameState.playing) {
+                c.update();
+            }
             c.draw(ctx);
         });
 
         gameState.enemies.forEach(e => {
-            e.update();
+            if (gameState.playing) {
+                e.update();
+            }
             e.draw(ctx);
         });
 
@@ -545,13 +551,15 @@ function loadLevelFromFile(file) {
 function loadLevelFromData(mapData) {
     if (MapLoader.loadMap(mapData)) {
         gameState.screen = "playing";
-        gameState.playing = true;
+        // Don't set playing = true here - wait for START GAME button
+        // gameState.playing = true;
         gameState.editorMode = false;
         document.getElementById('home-screen').classList.remove('active');
         document.getElementById('community-screen').classList.remove('active');
         document.getElementById('game-container').style.display = 'flex';
         document.getElementById('level-editor').classList.remove('active');
-        AudioSystem.playMusic("gameplay");
+        // Don't play music here - wait for START GAME
+        // AudioSystem.playMusic("gameplay");
     } else {
         alert("Failed to load map.");
     }

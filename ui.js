@@ -131,11 +131,6 @@ document.getElementById('start-game').addEventListener('click', () => {
     AudioSystem.playMusic("gameplay");
 });
 
-document.getElementById('open-loadout').addEventListener('click', () => {
-    AudioSystem.playClick();
-    document.getElementById('loadout-modal').classList.add('active');
-});
-
 document.getElementById('close-loadout').addEventListener('click', () => {
     AudioSystem.playClick();
     document.getElementById('loadout-modal').classList.remove('active');
@@ -144,7 +139,20 @@ document.getElementById('close-loadout').addEventListener('click', () => {
 document.getElementById('confirm-loadout').addEventListener('click', () => {
     AudioSystem.playClick();
     document.getElementById('loadout-modal').classList.remove('active');
-    if (gameState.player) {
+    
+    // If we have a selected mission, load it
+    if (gameState.selectedMission) {
+        loadMission(gameState.selectedMission.id);
+        gameState.selectedMission = null;
+        // Music will be played when START GAME is pressed
+    } else if (gameState.selectedMapData) {
+        // Load community map
+        loadLevelFromData(gameState.selectedMapData);
+        gameState.selectedMapData = null;
+        gameState.screen = 'playing';
+        // Music will be played when START GAME is pressed
+    } else if (gameState.player) {
+        // Update existing player loadout
         gameState.player.weapons.primary = gameState.player.createWeapon(gameState.loadout.primary);
         gameState.player.weapons.secondary = gameState.player.createWeapon(gameState.loadout.secondary);
         gameState.player.equipment = { ...EQUIPMENT[gameState.loadout.equipment] };
@@ -253,8 +261,10 @@ document.getElementById('btn-campaign').addEventListener('click', () => {
         `;
         missionDiv.addEventListener('click', () => {
             AudioSystem.playSelect();
-            loadMission(mission.id);
-            AudioSystem.playMusic('gameplay');
+            // Store selected mission for loadout confirmation
+            gameState.selectedMission = mission;
+            document.getElementById('level-select-screen').classList.remove('active');
+            document.getElementById('loadout-modal').classList.add('active');
         });
         missionDiv.addEventListener('mouseenter', () => missionDiv.style.background = '#444');
         missionDiv.addEventListener('mouseleave', () => missionDiv.style.background = '#333');
@@ -296,14 +306,10 @@ document.getElementById('btn-community').addEventListener('click', async () => {
                     : map.data || await loadCommunityMapData(map.id);
                 
                 if (mapData) {
-                    loadLevelFromData(mapData);
-                    gameState.screen = 'playing';
-                    gameState.playing = true;
+                    // Store the map data for loadout confirmation
+                    gameState.selectedMapData = mapData;
                     document.getElementById('community-screen').classList.remove('active');
-                    document.getElementById('game-container').style.display = 'flex';
-                    AudioSystem.playMusic('gameplay');
-                } else {
-                    alert('Failed to load map data');
+                    document.getElementById('loadout-modal').classList.add('active');
                 }
             });
             levelDiv.addEventListener('mouseenter', () => levelDiv.style.background = '#444');
@@ -359,11 +365,6 @@ document.getElementById('map-file-input').addEventListener('change', (e) => {
         loadLevelFromFile(e.target.files[0]);
         e.target.value = ''; // Reset for future loads
     }
-});
-
-document.getElementById('btn-loadout-home').addEventListener('click', () => {
-    AudioSystem.playClick();
-    document.getElementById('loadout-modal').classList.add('active');
 });
 
 document.getElementById('back-to-home').addEventListener('click', () => {
