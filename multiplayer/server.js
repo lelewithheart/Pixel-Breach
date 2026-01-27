@@ -6,7 +6,7 @@ const { CVC_CONSTANTS, TEAM_COLORS } = require('./constants.js');
 const { CVC_LOADOUTS, DEFAULT_LOADOUTS, validateLoadout, getLoadoutItem, getAvailableItems } = require('./loadout.js');
 const { CVCScoring } = require('./scoring.js');
 
-const PORT = 3001;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 const WEBSOCKET_MAGIC = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
 const SERVER_GRID_WIDTH = 40;
@@ -1146,8 +1146,8 @@ server.listen(PORT, () => {
     console.log('╔════════════════════════════════════════════════════════╗');
     console.log('║     COPS VS CRIMINALS - Multiplayer Server             ║');
     console.log('╠════════════════════════════════════════════════════════╣');
-    console.log(`║  🎮 WebSocket:  ws://localhost:${PORT}                    ║`);
-    console.log(`║  📡 HTTP API:   http://localhost:${PORT}                  ║`);
+    console.log(`║  🎮 WebSocket port: ${PORT} (use wss://your-domain if behind TLS)   ║`);
+    console.log(`║  📡 HTTP API port:  ${PORT}                                      ║`);
     console.log('╠════════════════════════════════════════════════════════╣');
     console.log('║  Endpoints:                                            ║');
     console.log('║    GET  /health       - Server health check            ║');
