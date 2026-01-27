@@ -1,0 +1,12 @@
+{
+  "name": "pixel-breach",
+  "version": "0.1.0",
+  "description": "Pixel Breach - multiplayer HTML5 game",
+  "main": "multiplayer/server.js",
+  "scripts": {
+    "start": "node multiplayer/server.js"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
