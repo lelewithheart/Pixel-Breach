@@ -39,36 +39,76 @@ class CVCClient {
     }
 
     connect(serverUrl = MULTIPLAYER_SERVER_URL) {
-        return new Promise((resolve, reject) => {
-            try {
-                this.socket = new WebSocket(serverUrl);
+        // Try the configured server URL first; on failure, try common local ports as fallback.
+        const tryUrls = [serverUrl];
+        // Ensure common local dev ports are tried if not already included
+        if (!tryUrls.includes('ws://localhost:10000')) tryUrls.push('ws://localhost:10000');
+        if (!tryUrls.includes('ws://localhost:3001')) tryUrls.push('ws://localhost:3001');
 
-                this.socket.onopen = () => {
-                    console.log("[CVC Client] Connected to server");
-                    this.connected = true;
-                    if (this.onConnect) this.onConnect();
-                    resolve();
-                };
+        const tryConnect = (urls) => {
+            if (!urls.length) return Promise.reject(new Error('All connection attempts failed'));
+            const url = urls.shift();
+            console.log('[CVC Client] Attempting WebSocket to', url);
+            return new Promise((resolve, reject) => {
+                let settled = false;
+                try {
+                    const socket = new WebSocket(url);
 
-                this.socket.onclose = () => {
-                    console.log("[CVC Client] Disconnected from server");
-                    this.connected = false;
-                    if (this.onDisconnect) this.onDisconnect();
-                };
+                    const cleanUp = () => {
+                        socket.onopen = null;
+                        socket.onclose = null;
+                        socket.onerror = null;
+                        socket.onmessage = null;
+                    };
 
-                this.socket.onerror = (error) => {
-                    console.error("[CVC Client] Connection error: ", error);
-                    reject(error);
-                };
+                    const onOpen = () => {
+                        if (settled) return;
+                        settled = true;
+                        this.socket = socket;
+                        this.connected = true;
+                        console.log('[CVC Client] Connected to server at', url);
+                        socket.onmessage = (event) => this.handleServerMessage(JSON.parse(event.data));
+                        socket.onclose = () => {
+                            console.log('[CVC Client] Disconnected from server');
+                            this.connected = false;
+                            if (this.onDisconnect) this.onDisconnect();
+                        };
+                        socket.onerror = (err) => {
+                            console.error('[CVC Client] Socket error', err);
+                        };
+                        if (this.onConnect) this.onConnect();
+                        resolve();
+                    };
 
-                this.socket.onmessage = (event) => {
-                    this.handleServerMessage(JSON.parse(event.data));
-                };
+                    const onError = (err) => {
+                        if (settled) return;
+                        settled = true;
+                        cleanUp();
+                        console.warn('[CVC Client] Connection failed to', url, err);
+                        // try next URL
+                        tryConnect(urls).then(resolve).catch(reject);
+                    };
 
-            } catch (error) {
-                reject(error);
-            }
-        });
+                    socket.onopen = onOpen;
+                    socket.onerror = onError;
+
+                    // Safety timeout for connection attempt
+                    setTimeout(() => {
+                        if (settled) return;
+                        settled = true;
+                        try { socket.close(); } catch (e) {}
+                        console.warn('[CVC Client] Connection attempt timed out for', url);
+                        tryConnect(urls).then(resolve).catch(reject);
+                    }, 4000);
+
+                } catch (error) {
+                    console.warn('[CVC Client] Exception while connecting to', url, error);
+                    tryConnect(urls).then(resolve).catch(reject);
+                }
+            });
+        };
+
+        return tryConnect(tryUrls);
     }
 
     disconnect() {
