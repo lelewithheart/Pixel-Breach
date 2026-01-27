@@ -406,8 +406,8 @@ class CVCClient {
         const localPlayerData = message.players.find(p => p.id === this.playerId);
         if (localPlayerData) {
             if (this.localPlayer) {
-                const dx = localPlayerData.x - this.localPlayerData.x;
-                const dy = localPlayerData.y - this.localPlayerData.y;
+                const dx = localPlayerData.x - this.localPlayer.x;
+                const dy = localPlayerData.y - this.localPlayer.y;
                 const dist = Math.hypot(dx, dy);
 
                 if (dist > 50) {
