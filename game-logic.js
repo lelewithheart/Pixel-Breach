@@ -1,6 +1,7 @@
 let gameState = {
     screen: 'home', // home, levelSelect, playing, editor, lockpick
     playing: false,
+    multiplayerMode: false, // Flag to prevent singleplayer logic during multiplayer
     editorMode: false,
     currentTool: 'wall',
     currentMission: null,
@@ -226,6 +227,12 @@ function loadMission(missionId) {
 }
 
 function gameLoop() {
+    // Skip singleplayer rendering if in multiplayer mode
+    if (gameState.multiplayerMode) {
+        requestAnimationFrame(gameLoop);
+        return;
+    }
+
     ctx.fillStyle = "#111";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 

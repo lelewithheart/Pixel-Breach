@@ -477,6 +477,9 @@ function initMultiplayerUI() {
         client.leaveMatch();
         document.getElementById('mp-match-info').style.display = 'none';
         document.getElementById('mp-lobby').style.display = 'block';
+        if (typeof gameState !== 'undefined') {
+            gameState.multiplayerMode = false;
+        }
     });
 
     // Back button
@@ -484,6 +487,9 @@ function initMultiplayerUI() {
         client.disconnect();
         document.getElementById('multiplayer-screen').classList.remove('active');
         document.getElementById('home-screen').classList.add('active');
+        if (typeof gameState !== 'undefined') {
+            gameState.multiplayerMode = false;
+        }
     });
 
     // Confirm loadout
@@ -652,9 +658,20 @@ function showMatchResults(results) {
 
     document.getElementById('mp-results-modal').classList.add('active');
     document.getElementById('game-container').style.display = 'none';
+    
+    // Reset multiplayer mode when showing results
+    if (typeof gameState !== 'undefined') {
+        gameState.multiplayerMode = false;
+    }
 }
 
 function startMultiplayerGame() {
+    // Set multiplayer mode flag to stop singleplayer game loop from rendering
+    if (typeof gameState !== 'undefined') {
+        gameState.multiplayerMode = true;
+        gameState.playing = false;
+    }
+
     document.getElementById('game-container').style.display = 'flex';
 
     const canvas = document.getElementById('gameCanvas');
