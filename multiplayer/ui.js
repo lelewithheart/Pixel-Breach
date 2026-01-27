@@ -453,7 +453,7 @@ function initMultiplayerUI() {
     // Connect button
     document.getElementById('btn-connect-mp').addEventListener('click', async () => {
         try {
-            await client.connect('ws://localhost:3001');
+            await client.connect();
             updateConnectionStatus(true);
         } catch (error) {
             alert('Failed to connect to server. Make sure the multiplayer server is running.');
