@@ -219,17 +219,17 @@ function removeEntitiesAt(gridX, gridY) {
         const selectedEnemy = editorState.enemies[editorState.selectedEnemy];
         selectedEnemyPos = { x: selectedEnemy.x, y: selectedEnemy.y };
     }
-    
+
     editorState.enemies = editorState.enemies.filter(e => e.x !== gridX || e.y !== gridY);
     editorState.civilians = editorState.civilians.filter(c => c.x !== gridX || c.y !== gridY);
     editorState.doors = editorState.doors.filter(d => d.x !== gridX || d.y !== gridY);
-    
+
     // Update selectedEnemy index
     if (selectedEnemyPos !== null) {
         const newIndex = editorState.enemies.findIndex(e => e.x === selectedEnemyPos.x && e.y === selectedEnemyPos.y);
         editorState.selectedEnemy = newIndex;
     }
-    
+
     // Remove patrol points at this location
     editorState.enemies.forEach(enemy => {
         enemy.patrolPoints = enemy.patrolPoints.filter(p => p.x !== gridX || p.y !== gridY);
@@ -283,7 +283,7 @@ function render() {
     editorState.enemies.forEach((e, index) => {
         ctx.fillStyle = e.type === "heavy" ? "#a00" : "#f00";
         ctx.fillRect(e.x * TILE_SIZE + 2, e.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
-        
+
         // Highlight selected enemy
         if (editorState.selectedEnemy === index) {
             ctx.strokeStyle = "#fff";
@@ -291,11 +291,11 @@ function render() {
             ctx.strokeRect(e.x * TILE_SIZE + 1, e.y * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2);
             ctx.lineWidth = 1;
         }
-        
+
         ctx.fillStyle = "#fff"
         ctx.font = "10px monospace";
         ctx.fillText(e.type === "heavy" ? "H" : "E", e.x * TILE_SIZE + 6, e.y * TILE_SIZE + 13);
-        
+
         // Draw patrol points for this enemy
         e.patrolPoints.forEach((point, index) => {
             ctx.fillStyle = "#0ff";
@@ -368,7 +368,7 @@ function renderMinimap() {
     editorState.enemies.forEach(e => {
         minimapCtx.fillStyle = e.type === "heavy" ? "#a00" : "#f00";
         minimapCtx.fillRect(e.x * TILE_SIZE * actualScale - 1, e.y * TILE_SIZE * actualScale - 1, 3, 3);
-        
+
         // Draw patrol points
         e.patrolPoints.forEach(point => {
             minimapCtx.fillStyle = "#0ff";
@@ -707,7 +707,7 @@ document.getElementById("outline-room").addEventListener("click", () => {
 // Submit map for review
 document.getElementById("submit-review").addEventListener("click", async () => {
     const statusDiv = document.getElementById("submit-status");
-    
+
     // Validate map first
     let hasSpawn = false;
     let hasExit = false;
@@ -717,31 +717,31 @@ document.getElementById("submit-review").addEventListener("click", async () => {
             if (editorState.grid[y][x] === 4) hasExit = true;
         }
     }
-    
+
     if (!hasSpawn || !hasExit) {
         statusDiv.innerHTML = '<span style="color: #f00;">❌ Map needs a spawn point AND an exit point!</span>';
         return;
     }
-    
+
     const mapName = document.getElementById("map-name").value.trim();
     if (!mapName || mapName === "Untitled Mission") {
         statusDiv.innerHTML = '<span style="color: #f00;">❌ Please enter a map name!</span>';
         return;
     }
-    
+
     statusDiv.innerHTML = '<span style="color: #ff0;">⏳ Submitting...</span>';
-    
+
     const mapData = createMapData();
-    
+
     try {
         const res = await fetch('/api/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mapData })
         });
-        
+
         const data = await res.json();
-        
+
         if (data.success) {
             statusDiv.innerHTML = '<span style="color: #0f0;">✅ Map submitted for review! An admin will review it soon.</span>';
         } else {

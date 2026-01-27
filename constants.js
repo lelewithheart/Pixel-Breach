@@ -1,4 +1,3 @@
-// Game Constants
 const TILE_SIZE = 20;
 const GRID_WIDTH = 40;
 const GRID_HEIGHT = 30;

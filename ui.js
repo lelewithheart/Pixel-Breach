@@ -1,4 +1,3 @@
-// Update UI
 function updateUI() {
     if (!gameState.player) return;
 
@@ -139,7 +138,7 @@ document.getElementById('close-loadout').addEventListener('click', () => {
 document.getElementById('confirm-loadout').addEventListener('click', () => {
     AudioSystem.playClick();
     document.getElementById('loadout-modal').classList.remove('active');
-    
+
     // If we have a selected mission, load it
     if (gameState.selectedMission) {
         loadMission(gameState.selectedMission.id);
@@ -299,12 +298,12 @@ document.getElementById('btn-community').addEventListener('click', async () => {
             `;
             levelDiv.addEventListener('click', async () => {
                 AudioSystem.playSelect();
-                
+
                 // Load the map data
-                const mapData = map.isServerMap 
+                const mapData = map.isServerMap
                     ? await loadCommunityMapData(map.id)
                     : map.data || await loadCommunityMapData(map.id);
-                
+
                 if (mapData) {
                     // Store the map data for loadout confirmation
                     gameState.selectedMapData = mapData;

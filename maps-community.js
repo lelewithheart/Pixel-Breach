@@ -1,7 +1,3 @@
-// Community Maps Storage and Management
-// Loads from server API when running with server.js
-// Falls back to localStorage for standalone use
-
 // Check if running with server
 let serverAvailable = false;
 

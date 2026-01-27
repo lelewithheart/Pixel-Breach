@@ -1,8 +1,3 @@
-// Weapon Definitions
-// fireRate: milliseconds between shots
-// spread: radians of bullet deviation for accuracy
-// auto: whether weapon can fire automatically when holding mouse button
-// noiseLevel: how far the gunshot sound travels (in pixels) to alert enemies
 const WEAPONS = {
     mp5: { name: 'MP5', damage: 20, fireRate: 100, magSize: 30, totalAmmo: 90, spread: 0.1, auto: true, noiseLevel: 200 },
     m4a1: { name: 'M4A1', damage: 30, fireRate: 120, magSize: 30, totalAmmo: 90, spread: 0.08, auto: true, noiseLevel: 250 },

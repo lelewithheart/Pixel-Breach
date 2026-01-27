@@ -581,8 +581,6 @@ class Enemy {
         return path;
     }
 
-
-
     shoot() {
         if (!this.canFire || this.reloading) return;
 

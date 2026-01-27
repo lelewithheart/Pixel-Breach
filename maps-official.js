@@ -1,6 +1,3 @@
-// Official Mission Definitions
-// Enhanced missions with full map data for the new loadMap() system
-
 const MISSIONS = [
     {
         id: 1,
@@ -290,7 +287,7 @@ function generateMissionGrid(mission) {
             }
         }
     }
-    
+
     // Add room structures based on mission difficulty
     if (mission.difficulty === 'easy') {
         // Simple open layout with some cover - player can easily navigate
@@ -395,13 +392,13 @@ function generateMissionGrid(mission) {
         grid[27][1] = 4;
         grid[27][2] = 4;
     }
-    
+
     // Add spawn point
     grid[mission.mapData.spawn.y][mission.mapData.spawn.x] = 2;
-    
+
     // Add some cover positions based on grid layout
     addCoverPositions(grid, mission.difficulty);
-    
+
     return grid;
 }
 
@@ -437,7 +434,7 @@ function addVerticalWall(grid, x, startY, length) {
 function addCoverPositions(grid, difficulty) {
     // Add cover objects at strategic positions based on difficulty
     let coverPositions = [];
-    
+
     if (difficulty === 'easy') {
         coverPositions = [
             [5, 5], [5, 20], [18, 5], [18, 20], [32, 5], [32, 20],
@@ -456,7 +453,7 @@ function addCoverPositions(grid, difficulty) {
             [5, 20], [15, 20], [25, 20], [35, 20]
         ];
     }
-    
+
     coverPositions.forEach(([x, y]) => {
         if (y >= 0 && y < GRID_HEIGHT && x >= 0 && x < GRID_WIDTH) {
             if (grid[y][x] === 0) {

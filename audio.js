@@ -1,5 +1,3 @@
-// 8 Bit Audio
-
 const AudioSystem = {
     context: null,
     masterGain: null,
