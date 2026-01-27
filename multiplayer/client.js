@@ -38,7 +38,7 @@ class CVCClient {
         this.onError = null;
     }
 
-    connect(serverUrl = "wss://pixel-breach.onrender.com") {
+    connect(serverUrl = MULTIPLAYER_SERVER_URL) {
         return new Promise((resolve, reject) => {
             try {
                 this.socket = new WebSocket(serverUrl);

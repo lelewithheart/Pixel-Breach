@@ -1,4 +1,4 @@
-const MULTIPLAYER_SERVER_URL = "ws://localhost:3001";
+const MULTIPLAYER_SERVER_URL = "wss://pixel-breach.onrender.com";
 
 const CVC_CONSTANTS = {
     TOTAL_PLAYERS: 10,
