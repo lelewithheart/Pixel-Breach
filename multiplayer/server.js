@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { CVC_CONSTANTS, TEAM_COLORS } = require('./constants.js');
-const { CVC_LOADOUTS, DEFAULT_LOADOUTS, validateLoadout, getLoadoutItem, getAvailableItems } = require('./loadouts.js');
+const { CVC_LOADOUTS, DEFAULT_LOADOUTS, validateLoadout, getLoadoutItem, getAvailableItems } = require('./loadout.js');
 const { CVCScoring } = require('./scoring.js');
 
 const PORT = 3001;

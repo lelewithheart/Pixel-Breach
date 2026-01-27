@@ -45,15 +45,15 @@ class CVCClient {
 
                 this.socket.onopen = () => {
                     console.log("[CVC Client] Connected to server");
-                    this.connect = true;
-                    if (this.onConnect) this.onDisconnect();
+                    this.connected = true;
+                    if (this.onConnect) this.onConnect();
                     resolve();
                 };
 
                 this.socket.onclose = () => {
                     console.log("[CVC Client] Disconnected from server");
                     this.connected = false;
-                    if (this.onDisconnect) this.onConnect();
+                    if (this.onDisconnect) this.onDisconnect();
                 };
 
                 this.socket.onerror = (error) => {

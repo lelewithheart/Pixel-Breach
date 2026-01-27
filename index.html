@@ -242,6 +242,7 @@
             <h1 style="font-size: 36px; color: #0f0; margin-bottom: 30px;">PIXEL BREACH</h1>
             <h2 style="font-size: 18px; color: #888; margin-bottom: 40px;">Tactical SWAT Operations</h2>
             <button id="btn-campaign" style="font-size: 16px; padding: 15px; margin: 10px;">CAMPAIGN</button>
+            <button id="btn-multiplayer" style="font-size: 16px; padding: 15px; margin: 10px;">MULTIPLAYER</button>
             <button id="btn-community" style="font-size: 16px; padding: 15px; margin: 10px;">COMMUNITY LEVELS</button>
             <button id="btn-load-map" style="font-size: 16px; padding: 15px; margin: 10px;">LOAD MAP FILE</button>
             <button id="btn-editor-home" style="font-size: 16px; padding: 15px; margin: 10px;">LEVEL EDITOR</button>
@@ -294,6 +295,19 @@
     <script src="map-loader.js"></script>
     <script src="game-logic.js"></script>
     <script src="ui.js"></script>
+    <script src="multiplayer/constants.js"></script>
+    <script src="multiplayer/loadout.js"></script>
+    <script src="multiplayer/scoring.js"></script>
+    <script src="multiplayer/mechanics.js"></script>
+    <script src="multiplayer/game-mode.js"></script>
+    <script src="multiplayer/client.js"></script>
+    <script src="multiplayer/ui.js"></script>
+    <script>
+        document.getElementById('btn-multiplayer').addEventListener('click', () => {
+            document.getElementById('home-screen').classList.remove('active');
+            document.getElementById('multiplayer-screen').classList.add('active');
+        });
+    </script>
 </body>
 
 </html>
