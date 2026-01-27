@@ -39,11 +39,16 @@ class CVCClient {
     }
 
     connect(serverUrl = MULTIPLAYER_SERVER_URL) {
-        // Try the configured server URL first; on failure, try common local ports as fallback.
+        // Only use the configured server URL - no localhost fallbacks on deployed sites
         const tryUrls = [serverUrl];
-        // Ensure common local dev ports are tried if not already included
-        if (!tryUrls.includes('ws://localhost:10000')) tryUrls.push('ws://localhost:10000');
-        if (!tryUrls.includes('ws://localhost:3001')) tryUrls.push('ws://localhost:3001');
+        
+        // Only add localhost fallbacks when actually developing locally
+        const isLocal = typeof window !== 'undefined' && 
+            (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+        if (isLocal) {
+            if (!tryUrls.includes('ws://localhost:10000')) tryUrls.push('ws://localhost:10000');
+            if (!tryUrls.includes('ws://localhost:3001')) tryUrls.push('ws://localhost:3001');
+        }
 
         const tryConnect = (urls) => {
             if (!urls.length) return Promise.reject(new Error('All connection attempts failed'));
