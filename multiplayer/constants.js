@@ -1,4 +1,14 @@
-const MULTIPLAYER_SERVER_URL = "wss://pixel-breach.onrender.com";
+// Choose server URL dynamically: local developer server vs deployed public server
+let MULTIPLAYER_SERVER_URL = "wss://pixel-breach.onrender.com";
+
+// In browser, prefer local websocket during local development
+if (typeof window !== 'undefined' && window.location) {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+        // When running the server locally Render/your env may use port 10000
+        MULTIPLAYER_SERVER_URL = 'ws://localhost:10000';
+    }
+}
 
 const CVC_CONSTANTS = {
     TOTAL_PLAYERS: 10,
