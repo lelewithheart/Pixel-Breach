@@ -100,14 +100,14 @@ class CVCGameMode {
         let team;
         if (this.teams.cops.size <= this.teams.criminals.size) {
             team = CVC_CONSTANTS.TEAM_COPS;
-            this.teams.cops.add(playerdId);
+            this.teams.cops.add(playerId);
         } else {
             team = CVC_CONSTANTS.TEAM_CRIMINALS;
             this.teams.criminals.add(playerId);
         }
 
-        const player = new NetworkedPlayer(playerId, playerdName, team);
-        this.players.set(playerId, team);
+        const player = new NetworkedPlayer(playerId, playerName, team);
+        this.players.set(playerId, player);
 
         return {
             success: true,
@@ -466,7 +466,7 @@ class CVCGameMode {
         let rescued = null;
         for (const civilian of this.civilians) {
             if (!civilian.rescued && !civilian.dead) {
-                const dist = Math.hypot(civilian.x - player - x, civilian.y - player.y);
+                const dist = Math.hypot(civilian.x - player.x, civilian.y - player.y);
                 if (dist < 40) {
                     civilian.rescued = true;
                     rescued = civilian;
@@ -616,7 +616,7 @@ class NetworkedPlayer {
         }
 
         if (input.dx !== 0 || input.dy !== 0) {
-            const magnitude = Math.hypot(input.dy, input.dy);
+            const magnitude = Math.hypot(input.dx, input.dy);
             this.x += (input.dx / magnitude) * speed * dt;
             this.y += (input.dy / magnitude) * speed * dt;
         }

@@ -1,16 +1,299 @@
+// Collection of multiplayer maps
+// Tile types: 0 = floor, 1 = wall, 3 = cover
+// Map grid dimensions (40x30 tiles = 800x600 pixels at 20px per tile)
+const MP_MAP_WIDTH = 40;
+const MP_MAP_HEIGHT = 30;
+
+const MULTIPLAYER_MAPS = {
+    // Map 1: Crossroads - Classic cross-shaped arena with central cover
+    crossroads: {
+        name: "Crossroads",
+        generate: function() {
+            const map = [];
+            
+            for (let y = 0; y < MP_MAP_HEIGHT; y++) {
+                map[y] = [];
+                for (let x = 0; x < MP_MAP_WIDTH; x++) {
+                    // Border walls
+                    if (x === 0 || x === MP_MAP_WIDTH - 1 || y === 0 || y === MP_MAP_HEIGHT - 1) {
+                        map[y][x] = 1;
+                    }
+                    // Vertical walls with gaps
+                    else if ((x === 10 || x === 30) && y > 5 && y < 25 && y !== 15) {
+                        map[y][x] = 1;
+                    }
+                    // Horizontal walls with gaps
+                    else if ((y === 10 || y === 20) && x > 5 && x < 35 && x !== 20) {
+                        map[y][x] = 1;
+                    }
+                    // Cover spots
+                    else if ((x === 15 && y === 15) || (x === 25 && y === 15) || 
+                             (x === 20 && y === 7) || (x === 20 && y === 23)) {
+                        map[y][x] = 3;
+                    }
+                    else {
+                        map[y][x] = 0;
+                    }
+                }
+            }
+            return map;
+        }
+    },
+    
+    // Map 2: Warehouse - Large open area with scattered crates and pillars
+    warehouse: {
+        name: "Warehouse",
+        generate: function() {
+            const map = [];
+            
+            for (let y = 0; y < MP_MAP_HEIGHT; y++) {
+                map[y] = [];
+                for (let x = 0; x < MP_MAP_WIDTH; x++) {
+                    // Border walls
+                    if (x === 0 || x === MP_MAP_WIDTH - 1 || y === 0 || y === MP_MAP_HEIGHT - 1) {
+                        map[y][x] = 1;
+                    }
+                    // Pillar clusters (2x2 walls) scattered around
+                    else if ((x >= 8 && x <= 9 && y >= 8 && y <= 9) ||
+                             (x >= 30 && x <= 31 && y >= 8 && y <= 9) ||
+                             (x >= 8 && x <= 9 && y >= 20 && y <= 21) ||
+                             (x >= 30 && x <= 31 && y >= 20 && y <= 21) ||
+                             (x >= 19 && x <= 20 && y >= 14 && y <= 15)) {
+                        map[y][x] = 1;
+                    }
+                    // Crate cover spots
+                    else if ((x === 15 && y === 5) || (x === 25 && y === 5) ||
+                             (x === 15 && y === 24) || (x === 25 && y === 24) ||
+                             (x === 5 && y === 14) || (x === 34 && y === 14) ||
+                             (x === 12 && y === 12) || (x === 27 && y === 17)) {
+                        map[y][x] = 3;
+                    }
+                    else {
+                        map[y][x] = 0;
+                    }
+                }
+            }
+            return map;
+        }
+    },
+    
+    // Map 3: Compound - Building with rooms and corridors
+    compound: {
+        name: "Compound",
+        generate: function() {
+            const map = [];
+            
+            for (let y = 0; y < MP_MAP_HEIGHT; y++) {
+                map[y] = [];
+                for (let x = 0; x < MP_MAP_WIDTH; x++) {
+                    // Border walls
+                    if (x === 0 || x === MP_MAP_WIDTH - 1 || y === 0 || y === MP_MAP_HEIGHT - 1) {
+                        map[y][x] = 1;
+                    }
+                    // Left room
+                    else if ((x === 12 && y >= 3 && y <= 12 && y !== 7) ||
+                             (y === 12 && x >= 3 && x <= 12 && x !== 7)) {
+                        map[y][x] = 1;
+                    }
+                    // Right room
+                    else if ((x === 27 && y >= 3 && y <= 12 && y !== 7) ||
+                             (y === 12 && x >= 27 && x <= 36 && x !== 32)) {
+                        map[y][x] = 1;
+                    }
+                    // Bottom left room
+                    else if ((x === 12 && y >= 17 && y <= 26 && y !== 22) ||
+                             (y === 17 && x >= 3 && x <= 12 && x !== 7)) {
+                        map[y][x] = 1;
+                    }
+                    // Bottom right room
+                    else if ((x === 27 && y >= 17 && y <= 26 && y !== 22) ||
+                             (y === 17 && x >= 27 && x <= 36 && x !== 32)) {
+                        map[y][x] = 1;
+                    }
+                    // Central corridor walls
+                    else if ((x === 18 || x === 21) && y >= 8 && y <= 21 && y !== 14 && y !== 15) {
+                        map[y][x] = 1;
+                    }
+                    // Cover in corridors
+                    else if ((x === 20 && y === 5) || (x === 20 && y === 24) ||
+                             (x === 7 && y === 14) || (x === 32 && y === 14)) {
+                        map[y][x] = 3;
+                    }
+                    else {
+                        map[y][x] = 0;
+                    }
+                }
+            }
+            return map;
+        }
+    },
+    
+    // Map 4: Symmetry - Perfectly symmetrical competitive arena
+    symmetry: {
+        name: "Symmetry",
+        generate: function() {
+            const map = [];
+            
+            for (let y = 0; y < MP_MAP_HEIGHT; y++) {
+                map[y] = [];
+                for (let x = 0; x < MP_MAP_WIDTH; x++) {
+                    // Border walls
+                    if (x === 0 || x === MP_MAP_WIDTH - 1 || y === 0 || y === MP_MAP_HEIGHT - 1) {
+                        map[y][x] = 1;
+                    }
+                    // Central divider with three gaps
+                    else if (x === 20 && y !== 7 && y !== 15 && y !== 22) {
+                        map[y][x] = 1;
+                    }
+                    // Left side walls
+                    else if ((x === 7 && y >= 5 && y <= 10) ||
+                             (x === 7 && y >= 19 && y <= 24) ||
+                             (y === 15 && x >= 3 && x <= 10 && x !== 7)) {
+                        map[y][x] = 1;
+                    }
+                    // Right side walls (mirrored)
+                    else if ((x === 32 && y >= 5 && y <= 10) ||
+                             (x === 32 && y >= 19 && y <= 24) ||
+                             (y === 15 && x >= 29 && x <= 36 && x !== 32)) {
+                        map[y][x] = 1;
+                    }
+                    // Cover spots (symmetrical)
+                    else if ((x === 10 && y === 8) || (x === 29 && y === 8) ||
+                             (x === 10 && y === 21) || (x === 29 && y === 21) ||
+                             (x === 15 && y === 15) || (x === 24 && y === 15)) {
+                        map[y][x] = 3;
+                    }
+                    else {
+                        map[y][x] = 0;
+                    }
+                }
+            }
+            return map;
+        }
+    },
+    
+    // Map 5: Labyrinth - Maze-like corridors for close quarters combat
+    labyrinth: {
+        name: "Labyrinth",
+        generate: function() {
+            const map = [];
+            
+            for (let y = 0; y < MP_MAP_HEIGHT; y++) {
+                map[y] = [];
+                for (let x = 0; x < MP_MAP_WIDTH; x++) {
+                    // Border walls
+                    if (x === 0 || x === MP_MAP_WIDTH - 1 || y === 0 || y === MP_MAP_HEIGHT - 1) {
+                        map[y][x] = 1;
+                    }
+                    // Maze walls - horizontal
+                    else if ((y === 5 && x >= 3 && x <= 15) ||
+                             (y === 5 && x >= 24 && x <= 36) ||
+                             (y === 10 && x >= 8 && x <= 20) ||
+                             (y === 10 && x >= 25 && x <= 32) ||
+                             (y === 15 && x >= 3 && x <= 12) ||
+                             (y === 15 && x >= 27 && x <= 36) ||
+                             (y === 20 && x >= 7 && x <= 14) ||
+                             (y === 20 && x >= 19 && x <= 31) ||
+                             (y === 24 && x >= 3 && x <= 15) ||
+                             (y === 24 && x >= 24 && x <= 36)) {
+                        map[y][x] = 1;
+                    }
+                    // Maze walls - vertical
+                    else if ((x === 8 && y >= 10 && y <= 15) ||
+                             (x === 15 && y >= 5 && y <= 10) ||
+                             (x === 20 && y >= 12 && y <= 18) ||
+                             (x === 24 && y >= 5 && y <= 10) ||
+                             (x === 31 && y >= 10 && y <= 15) ||
+                             (x === 14 && y >= 20 && y <= 24) ||
+                             (x === 25 && y >= 20 && y <= 24)) {
+                        map[y][x] = 1;
+                    }
+                    // Cover spots at key intersections
+                    else if ((x === 5 && y === 8) || (x === 34 && y === 8) ||
+                             (x === 5 && y === 21) || (x === 34 && y === 21) ||
+                             (x === 20 && y === 8) || (x === 20 && y === 21)) {
+                        map[y][x] = 3;
+                    }
+                    else {
+                        map[y][x] = 0;
+                    }
+                }
+            }
+            return map;
+        }
+    }
+};
+
+// Get all available map names
+function getMultiplayerMapNames() {
+    return Object.keys(MULTIPLAYER_MAPS);
+}
+
+// Get a random multiplayer map
+function getRandomMultiplayerMap() {
+    const mapNames = getMultiplayerMapNames();
+    const randomIndex = Math.floor(Math.random() * mapNames.length);
+    const selectedMapName = mapNames[randomIndex];
+    const selectedMap = MULTIPLAYER_MAPS[selectedMapName];
+    console.log(`[Multiplayer] Selected map: ${selectedMap.name}`);
+    return {
+        name: selectedMap.name,
+        grid: selectedMap.generate()
+    };
+}
+
+// Get a specific map by name
+function getMultiplayerMap(mapName) {
+    const mapData = MULTIPLAYER_MAPS[mapName];
+    if (!mapData) {
+        console.warn(`[Multiplayer] Map "${mapName}" not found, using random map`);
+        return getRandomMultiplayerMap();
+    }
+    return {
+        name: mapData.name,
+        grid: mapData.generate()
+    };
+}
+
 class CVCRenderer {
     constructor(canvas, ctx) {
         this.canvas = canvas;
         this.ctx = ctx;
         this.client = null;
+        this.mapGrid = null;
+        this.mapName = null;
+        this.tileSize = 20;
     }
-
-
     setClient(client) {
         this.client = client;
     }
 
+    // Set map grid directly (use setMap or setRandomMap for named maps)
+    setMapGrid(grid, mapName = 'Custom') {
+        this.mapGrid = grid;
+        this.mapName = mapName;
+    }
 
+    // Set a random map from the available multiplayer maps
+    setRandomMap() {
+        const mapData = getRandomMultiplayerMap();
+        this.mapGrid = mapData.grid;
+        this.mapName = mapData.name;
+        return mapData.name;
+    }
+    
+    // Set a specific map by name
+    setMap(mapName) {
+        const mapData = getMultiplayerMap(mapName);
+        this.mapGrid = mapData.grid;
+        this.mapName = mapData.name;
+        return mapData.name;
+    }
+
+    // Legacy method - now uses random map selection
+    generateDefaultMap() {
+        return this.setRandomMap();
+    }
     render() {
         if (!this.client) return;
 
@@ -21,20 +304,24 @@ class CVCRenderer {
         this.ctx.fillStyle = '#111';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Draw grid
-        this.drawGrid();
+        // Draw map grid (walls, floors, cover)
+        this.drawMapGrid();
 
         // Draw civilians
-        state.civilians.forEach(civ => {
-            this.drawCivilian(civ);
-        });
+        if (state.civilians) {
+            state.civilians.forEach(civ => {
+                this.drawCivilian(civ);
+            });
+        }
 
         // Draw other players
-        state.players.forEach(player => {
-            if (player.id !== this.client.playerId) {
-                this.drawPlayer(player, false);
-            }
-        });
+        if (state.players) {
+            state.players.forEach(player => {
+                if (player.id !== this.client.playerId) {
+                    this.drawPlayer(player, false);
+                }
+            });
+        }
 
         // Draw local player on top
         if (localPlayer) {
@@ -44,29 +331,37 @@ class CVCRenderer {
         // Draw HUD
         this.drawHUD(state, localPlayer);
     }
-
-
-    drawGrid() {
-        // Simple grid background
-        this.ctx.strokeStyle = '#333';
-        this.ctx.lineWidth = 1;
-
-        const tileSize = 20;
-        for (let x = 0; x <= this.canvas.width; x += tileSize) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(x, 0);
-            this.ctx.lineTo(x, this.canvas.height);
-            this.ctx.stroke();
+    drawMapGrid() {
+        // Generate default map if none exists
+        if (!this.mapGrid) {
+            this.generateDefaultMap();
         }
-        for (let y = 0; y <= this.canvas.height; y += tileSize) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, y);
-            this.ctx.lineTo(this.canvas.width, y);
-            this.ctx.stroke();
+
+        const MP_MAP_HEIGHT = this.mapGrid.length;
+        const MP_MAP_WIDTH = this.mapGrid[0] ? this.mapGrid[0].length : 40;
+
+        for (let y = 0; y < MP_MAP_HEIGHT; y++) {
+            for (let x = 0; x < MP_MAP_WIDTH; x++) {
+                const tile = this.mapGrid[y][x];
+                let color;
+                
+                switch (tile) {
+                    case 1: color = '#444'; break; // Wall
+                    case 2: color = '#0f0'; break; // Spawn (cops)
+                    case 3: color = '#666'; break; // Cover
+                    case 4: color = '#f00'; break; // Spawn (criminals)
+                    default: color = '#222'; break; // Floor
+                }
+                
+                this.ctx.fillStyle = color;
+                this.ctx.fillRect(x * this.tileSize, y * this.tileSize, this.tileSize, this.tileSize);
+
+                // Grid lines for visibility
+                this.ctx.strokeStyle = '#333';
+                this.ctx.strokeRect(x * this.tileSize, y * this.tileSize, this.tileSize, this.tileSize);
+            }
         }
     }
-
-
     drawPlayer(player, isLocal) {
         if (!player.alive) {
             // Draw death marker
@@ -118,8 +413,6 @@ class CVCRenderer {
         this.ctx.arc(player.x, player.y - 35, 3, 0, Math.PI * 2);
         this.ctx.fill();
     }
-
-
     drawCivilian(civilian) {
         if (civilian.dead) {
             this.ctx.fillStyle = '#666';
@@ -146,8 +439,6 @@ class CVCRenderer {
             this.ctx.fillText('!', civilian.x - 2, civilian.y + 18);
         }
     }
-
-
     drawHUD(state, localPlayer) {
         const ctx = this.ctx;
 
@@ -255,8 +546,6 @@ class CVCRenderer {
             this.drawStateOverlay(state.state);
         }
     }
-
-
     drawStateOverlay(gameState) {
         const ctx = this.ctx;
 
@@ -368,6 +657,68 @@ function createMultiplayerUI() {
         </div>
     `;
     document.body.appendChild(mpScreen);
+
+    // Create dedicated multiplayer game container (separate from singleplayer)
+    const mpGameContainer = document.createElement('div');
+    mpGameContainer.id = 'mp-game-container';
+    mpGameContainer.style.cssText = 'display: none; flex-direction: column; align-items: center; padding: 20px; background: #000; min-height: 100vh;';
+    mpGameContainer.innerHTML = `
+        <div id="mp-game-header" style="display: flex; justify-content: space-between; width: 800px; margin-bottom: 10px;">
+            <div id="mp-cops-score-panel" style="background: rgba(0, 102, 204, 0.3); border: 2px solid ${TEAM_COLORS.cops.primary}; padding: 10px 20px; min-width: 150px;">
+                <div style="color: ${TEAM_COLORS.cops.primary}; font-weight: bold;">COPS</div>
+                <div id="mp-cops-score-display" style="font-size: 24px; color: #fff;">0</div>
+            </div>
+            
+            <div id="mp-round-info" style="text-align: center; background: #222; padding: 10px 30px; border: 2px solid #555;">
+                <div id="mp-map-name" style="color: #0f0; font-size: 14px; font-weight: bold; margin-bottom: 5px;">MAP</div>
+                <div style="color: #888; font-size: 12px;">ROUND</div>
+                <div id="mp-round-display" style="font-size: 20px; color: #fff;">1 / ${CVC_CONSTANTS.TOTAL_ROUNDS}</div>
+                <div id="mp-timer-display" style="font-size: 28px; color: #0f0; font-weight: bold;">3:00</div>
+            </div>
+            
+            <div id="mp-criminals-score-panel" style="background: rgba(204, 51, 0, 0.3); border: 2px solid ${TEAM_COLORS.criminals.primary}; padding: 10px 20px; min-width: 150px; text-align: right;">
+                <div style="color: ${TEAM_COLORS.criminals.primary}; font-weight: bold;">CRIMINALS</div>
+                <div id="mp-criminals-score-display" style="font-size: 24px; color: #fff;">0</div>
+            </div>
+        </div>
+        
+        <canvas id="mpGameCanvas" width="800" height="600" style="border: 2px solid #444;"></canvas>
+        
+        <div id="mp-game-footer" style="display: flex; justify-content: space-between; width: 800px; margin-top: 10px;">
+            <div id="mp-player-status" style="background: #222; padding: 10px; min-width: 200px; border: 1px solid #444;">
+                <div style="color: #888; font-size: 12px;">YOUR STATUS</div>
+                <div id="mp-your-role" style="color: #0f0; font-weight: bold;"></div>
+                <div style="margin-top: 5px;">
+                    <span style="color: #888;">HP:</span>
+                    <span id="mp-health-display" style="color: #0f0;">100</span>
+                    <span style="color: #888; margin-left: 10px;">ARMOR:</span>
+                    <span id="mp-armor-display" style="color: #0af;">100</span>
+                </div>
+            </div>
+            
+            <div id="mp-civilians-status" style="background: #222; padding: 10px; text-align: center; border: 1px solid #444;">
+                <div style="color: #888; font-size: 12px;">CIVILIANS</div>
+                <div>
+                    <span id="mp-civilians-alive" style="color: #ff0;">0</span>
+                    <span style="color: #888;"> alive |</span>
+                    <span id="mp-civilians-rescued" style="color: #0f0;">0</span>
+                    <span style="color: #888;"> rescued |</span>
+                    <span id="mp-civilians-dead" style="color: #f00;">0</span>
+                    <span style="color: #888;"> dead</span>
+                </div>
+            </div>
+            
+            <div style="background: #222; padding: 10px; min-width: 150px; text-align: right; border: 1px solid #444;">
+                <button id="btn-leave-mp-game" style="padding: 8px 16px;">LEAVE GAME</button>
+            </div>
+        </div>
+        
+        <div id="mp-leaderboard" style="position: fixed; right: 20px; top: 100px; background: rgba(0,0,0,0.9); border: 2px solid #555; padding: 15px; min-width: 200px; display: none;">
+            <div style="color: #0f0; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px;">LEADERBOARD</div>
+            <div id="mp-leaderboard-list"></div>
+        </div>
+    `;
+    document.body.appendChild(mpGameContainer);
 
     // Create loadout selection modal for multiplayer
     const mpLoadout = document.createElement('div');
@@ -512,6 +863,36 @@ function initMultiplayerUI() {
         document.getElementById('multiplayer-screen').classList.add('active');
     });
 
+    // Leave multiplayer game button
+    document.getElementById('btn-leave-mp-game').addEventListener('click', () => {
+        leaveMultiplayerGame();
+    });
+
+    // Toggle leaderboard with Tab key (only when in multiplayer game)
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab' && mpGameActive) {
+            e.preventDefault();
+            const leaderboard = document.getElementById('mp-leaderboard');
+            if (leaderboard) {
+                leaderboard.style.display = 'block';
+                // Update leaderboard when shown
+                const client = window.cvcClient;
+                if (client && client.serverState && client.serverState.players) {
+                    updateLeaderboard(client.serverState.players);
+                }
+            }
+        }
+    });
+    
+    document.addEventListener('keyup', (e) => {
+        if (e.key === 'Tab' && mpGameActive) {
+            const leaderboard = document.getElementById('mp-leaderboard');
+            if (leaderboard) {
+                leaderboard.style.display = 'none';
+            }
+        }
+    });
+
     // Client event handlers
     client.onConnect = () => updateConnectionStatus(true);
     client.onDisconnect = () => updateConnectionStatus(false);
@@ -628,6 +1009,9 @@ function showLoadoutSelection(role) {
 }
 
 function showMatchResults(results) {
+    // Stop the multiplayer game loop
+    mpGameActive = false;
+    
     const title = document.getElementById('mp-results-title');
     if (results.winner === 'tie') {
         title.textContent = 'MATCH TIED!';
@@ -646,24 +1030,38 @@ function showMatchResults(results) {
         const div = document.createElement('div');
         div.style.cssText = 'padding: 5px; background: #333; margin: 3px 0;';
         const net = player.totalPointsEarned - player.totalPointsLost;
-        div.innerHTML = `
-            <span style="color: #888;">#${index + 1}</span>
-            <span style="color: ${player.originalTeam === 'cops' ? TEAM_COLORS.cops.primary : TEAM_COLORS.criminals.primary};">
-                ${player.id.substring(0, 10)}
-            </span>
-            <span style="float: right; color: ${net >= 0 ? '#0f0' : '#f00'};">${net} pts</span>
-        `;
+        
+        // Create elements safely to avoid XSS
+        const rankSpan = document.createElement('span');
+        rankSpan.style.color = '#888';
+        rankSpan.textContent = `#${index + 1}`;
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.style.color = player.originalTeam === 'cops' ? TEAM_COLORS.cops.primary : TEAM_COLORS.criminals.primary;
+        nameSpan.textContent = ' ' + (player.id || '').substring(0, 10);
+        
+        const scoreSpan = document.createElement('span');
+        scoreSpan.style.cssText = `float: right; color: ${net >= 0 ? '#0f0' : '#f00'};`;
+        scoreSpan.textContent = `${net} pts`;
+        
+        div.appendChild(rankSpan);
+        div.appendChild(nameSpan);
+        div.appendChild(scoreSpan);
         rankingsList.appendChild(div);
     });
 
     document.getElementById('mp-results-modal').classList.add('active');
-    document.getElementById('game-container').style.display = 'none';
+    document.getElementById('mp-game-container').style.display = 'none';
     
     // Reset multiplayer mode when showing results
     if (typeof gameState !== 'undefined') {
         gameState.multiplayerMode = false;
     }
 }
+
+// Global reference to multiplayer game state
+let mpGameActive = false;
+let mpRenderer = null;
 
 function startMultiplayerGame() {
     // Set multiplayer mode flag to stop singleplayer game loop from rendering
@@ -672,27 +1070,234 @@ function startMultiplayerGame() {
         gameState.playing = false;
     }
 
-    document.getElementById('game-container').style.display = 'flex';
+    // Hide all other screens, show dedicated multiplayer game container
+    document.getElementById('game-container').style.display = 'none';
+    document.getElementById('multiplayer-screen').classList.remove('active');
+    document.getElementById('mp-loadout-modal').classList.remove('active');
+    document.getElementById('mp-game-container').style.display = 'flex';
 
-    const canvas = document.getElementById('gameCanvas');
+    // Use the dedicated multiplayer canvas
+    const canvas = document.getElementById('mpGameCanvas');
     const ctx = canvas.getContext('2d');
-    const renderer = new CVCRenderer(canvas, ctx);
-    renderer.setClient(window.cvcClient);
+    mpRenderer = new CVCRenderer(canvas, ctx);
+    mpRenderer.setClient(window.cvcClient);
+    
+    // Select a random map for the renderer
+    const selectedMapName = mpRenderer.setRandomMap();
+    
+    // Display the map name in the UI
+    const mapNameDisplay = document.getElementById('mp-map-name');
+    if (mapNameDisplay) {
+        mapNameDisplay.textContent = selectedMapName;
+    }
 
-    // Game loop
-    function mpGameLoop() {
-        renderer.render();
+    // Update the player role display
+    const client = window.cvcClient;
+    const roleDisplay = document.getElementById('mp-your-role');
+    if (roleDisplay) {
+        const team = client.team || 'Unknown';
+        roleDisplay.textContent = team.toUpperCase();
+        roleDisplay.style.color = team === 'cops' ? TEAM_COLORS.cops.primary : TEAM_COLORS.criminals.primary;
+    }
 
-        // Handle input
-        handleMultiplayerInput();
+    mpGameActive = true;
+    
+    // Remove any existing mouse event listeners before adding new ones
+    canvas.removeEventListener('mousemove', handleMpMouseMove);
+    canvas.removeEventListener('mousedown', handleMpMouseDown);
+    canvas.removeEventListener('mouseup', handleMpMouseUp);
+    
+    // Add mouse tracking for the multiplayer canvas
+    canvas.addEventListener('mousemove', handleMpMouseMove);
+    canvas.addEventListener('mousedown', handleMpMouseDown);
+    canvas.addEventListener('mouseup', handleMpMouseUp);
 
-        if (window.cvcClient.isConnected() &&
-            window.cvcClient.serverState.state === CVC_CONSTANTS.STATE.PLAYING) {
+    // Start the multiplayer game loop
+    mpGameLoop();
+}
+
+function handleMpMouseMove(e) {
+    const canvas = document.getElementById('mpGameCanvas');
+    const rect = canvas.getBoundingClientRect();
+    const client = window.cvcClient;
+    const localPlayer = client.getLocalPlayer();
+    
+    if (localPlayer) {
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        localPlayer.angle = Math.atan2(mouseY - localPlayer.y, mouseX - localPlayer.x);
+    }
+}
+
+let mpMouseDown = false;
+function handleMpMouseDown(e) {
+    mpMouseDown = true;
+    const client = window.cvcClient;
+    const localPlayer = client.getLocalPlayer();
+    if (localPlayer) {
+        client.sendShoot(localPlayer.angle);
+    }
+}
+
+function handleMpMouseUp(e) {
+    mpMouseDown = false;
+}
+
+function mpGameLoop() {
+    if (!mpGameActive) return;
+    
+    const client = window.cvcClient;
+    
+    // Update HUD
+    updateMultiplayerHUD();
+    
+    // Render the game
+    if (mpRenderer) {
+        mpRenderer.render();
+    }
+
+    // Handle input
+    handleMultiplayerInput();
+
+    // Continue game loop based on state
+    const state = client.serverState.state;
+    if (client.isConnected() && mpGameActive) {
+        // Continue loop for any active game state
+        if (state === CVC_CONSTANTS.STATE.PLAYING || 
+            state === CVC_CONSTANTS.STATE.COUNTDOWN ||
+            state === CVC_CONSTANTS.STATE.ROUND_END ||
+            state === CVC_CONSTANTS.STATE.ROLE_SWITCH) {
+            requestAnimationFrame(mpGameLoop);
+        } else if (state === CVC_CONSTANTS.STATE.MATCH_END) {
+            // Match ended - will be handled by event
+            mpGameActive = false;
+        } else {
+            // Keep rendering for other states
             requestAnimationFrame(mpGameLoop);
         }
     }
+}
 
-    mpGameLoop();
+function updateMultiplayerHUD() {
+    const client = window.cvcClient;
+    if (!client) return;
+    
+    const state = client.serverState;
+    const localPlayer = client.getLocalPlayer();
+    
+    // Update round info
+    const roundDisplay = document.getElementById('mp-round-display');
+    if (roundDisplay) {
+        roundDisplay.textContent = `${state.round || 1} / ${CVC_CONSTANTS.TOTAL_ROUNDS}`;
+    }
+    
+    // Update timer
+    const timerDisplay = document.getElementById('mp-timer-display');
+    if (timerDisplay) {
+        const timeRemaining = state.roundTimeRemaining || 0;
+        const minutes = Math.floor(timeRemaining / 60000);
+        const seconds = Math.floor((timeRemaining % 60000) / 1000);
+        timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        timerDisplay.style.color = timeRemaining < 30000 ? '#f00' : '#0f0';
+    }
+    
+    // Update team scores
+    const scores = state.scores || { teamScores: { cops: 0, criminals: 0 } };
+    const copsScore = document.getElementById('mp-cops-score-display');
+    const criminalsScore = document.getElementById('mp-criminals-score-display');
+    if (copsScore) copsScore.textContent = scores.teamScores.cops || 0;
+    if (criminalsScore) criminalsScore.textContent = scores.teamScores.criminals || 0;
+    
+    // Update player status
+    if (localPlayer) {
+        const healthDisplay = document.getElementById('mp-health-display');
+        const armorDisplay = document.getElementById('mp-armor-display');
+        if (healthDisplay) healthDisplay.textContent = Math.floor(localPlayer.health || 100);
+        if (armorDisplay) armorDisplay.textContent = Math.floor(localPlayer.armor || 100);
+    }
+    
+    // Update civilians status
+    const civilians = state.civilians || [];
+    const civAlive = document.getElementById('mp-civilians-alive');
+    const civRescued = document.getElementById('mp-civilians-rescued');
+    const civDead = document.getElementById('mp-civilians-dead');
+    
+    const alive = civilians.filter(c => !c.rescued && !c.dead).length;
+    const rescued = civilians.filter(c => c.rescued).length;
+    const dead = civilians.filter(c => c.dead).length;
+    
+    if (civAlive) civAlive.textContent = alive;
+    if (civRescued) civRescued.textContent = rescued;
+    if (civDead) civDead.textContent = dead;
+    
+    // Update leaderboard only when visible (toggle with Tab key)
+    // Leaderboard updates are rate-limited to avoid excessive DOM manipulation
+}
+
+// Track last leaderboard update to rate-limit updates
+let lastLeaderboardUpdate = 0;
+const LEADERBOARD_UPDATE_INTERVAL = 500; // Update every 500ms max
+
+function updateLeaderboard(players) {
+    const leaderboard = document.getElementById('mp-leaderboard');
+    const list = document.getElementById('mp-leaderboard-list');
+    if (!list || !players) return;
+    
+    // Rate-limit leaderboard updates
+    const now = Date.now();
+    if (now - lastLeaderboardUpdate < LEADERBOARD_UPDATE_INTERVAL) return;
+    lastLeaderboardUpdate = now;
+    
+    list.innerHTML = '';
+    players.forEach(player => {
+        const div = document.createElement('div');
+        div.style.cssText = 'padding: 3px 5px; margin: 2px 0; font-size: 12px;';
+        const teamColor = player.team === 'cops' ? TEAM_COLORS.cops.primary : TEAM_COLORS.criminals.primary;
+        const aliveIndicator = player.alive ? '●' : '✕';
+        const aliveColor = player.alive ? '#0f0' : '#f00';
+        
+        // Create elements safely to avoid XSS
+        const statusSpan = document.createElement('span');
+        statusSpan.style.color = aliveColor;
+        statusSpan.textContent = aliveIndicator;
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.style.color = teamColor;
+        // Sanitize player name - use only alphanumeric and limited characters
+        const safeName = (player.name || player.id || '').substring(0, 8).replace(/[<>&"']/g, '');
+        nameSpan.textContent = ' ' + safeName;
+        
+        div.appendChild(statusSpan);
+        div.appendChild(nameSpan);
+        list.appendChild(div);
+    });
+}
+
+function leaveMultiplayerGame() {
+    mpGameActive = false;
+    
+    // Remove event listeners
+    const canvas = document.getElementById('mpGameCanvas');
+    if (canvas) {
+        canvas.removeEventListener('mousemove', handleMpMouseMove);
+        canvas.removeEventListener('mousedown', handleMpMouseDown);
+        canvas.removeEventListener('mouseup', handleMpMouseUp);
+    }
+    
+    // Leave the match
+    const client = window.cvcClient;
+    if (client) {
+        client.leaveMatch();
+    }
+    
+    // Hide multiplayer game container, show menu
+    document.getElementById('mp-game-container').style.display = 'none';
+    document.getElementById('multiplayer-screen').classList.add('active');
+    
+    // Reset singleplayer state
+    if (typeof gameState !== 'undefined') {
+        gameState.multiplayerMode = false;
+    }
 }
 
 function handleMultiplayerInput() {

@@ -165,7 +165,7 @@ class CVCClient {
         };
 
         this.pendingInputs.push({
-            sequence: this.inputSentence,
+            sequence: this.inputSequence,
             input: input,
             timestamp: Date.now()
         });
@@ -173,8 +173,8 @@ class CVCClient {
         this.send(inputPacket);
 
         if (this.localPlayer) {
-            this.applyInputLocally(input)
-        };
+            this.applyInputLocally(input);
+        }
     }
 
     sendShoot(angle) {
@@ -196,7 +196,7 @@ class CVCClient {
         });
     }
 
-    sendSwitchWeapon() {
+    sendSwitchWeapon(weapon) {
         this.send({
             type: "switch_weapon",
             weapon: weapon
@@ -265,7 +265,7 @@ class CVCClient {
     }
 
     toggleCrouch() {
-        if (!this.localPlayer) PaymentRequestUpdateEvent;
+        if (!this.localPlayer) return;
         this.localPlayer.crouching = !this.localPlayer.crouching;
         this.send({
             type: "toggle_crouch",
@@ -372,8 +372,8 @@ class CVCClient {
         }
     }
 
-    handlePlayerLeft(messgae) {
-        this.serverState.players = this.serverState.players.filter(p => p.id !== messgae.playerId);
+    handlePlayerLeft(message) {
+        this.serverState.players = this.serverState.players.filter(p => p.id !== message.playerId);
     }
 
     handleMatchState(message) {
@@ -430,7 +430,7 @@ class CVCClient {
     }
 
     handleRoundStart(message) {
-        this.serverState.round = message.roun;
+        this.serverState.round = message.round;
 
         this.pendingInputs = [];
 
@@ -526,7 +526,7 @@ class CVCClient {
         const t = (renderTime - before.timestamp) / (after.timestamp - before.timestamp);
 
         const interpolatedPlayers = before.state.players.map(beforePlayer => {
-            const afterPlayer = after.state.players.find(p => p.id === beforePlayer.Id);
+            const afterPlayer = after.state.players.find(p => p.id === beforePlayer.id);
             if (!afterPlayer) return beforePlayer;
 
             return {
@@ -576,7 +576,7 @@ class CVCClient {
     }
 
     isConnected() {
-        return this.connect;
+        return this.connected;
     }
 
     getTeam() {
