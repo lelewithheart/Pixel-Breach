@@ -1,9 +1,11 @@
-// Check if running with server
+
+// Always use the hosted backend for community features
+const COMMUNITY_BACKEND = 'https://pixel-breach.onrender.com';
 let serverAvailable = false;
 
 async function checkServer() {
     try {
-        const res = await fetch('/api/community');
+        const res = await fetch(`${COMMUNITY_BACKEND}/api/community`);
         serverAvailable = res.ok;
     } catch {
         serverAvailable = false;
@@ -12,10 +14,11 @@ async function checkServer() {
 }
 
 // Load all community maps
+
 async function loadCommunityMaps() {
-    // Try server first
+    // Always use hosted backend
     try {
-        const res = await fetch('/api/community');
+        const res = await fetch(`${COMMUNITY_BACKEND}/api/community`);
         if (res.ok) {
             const data = await res.json();
             serverAvailable = true;
@@ -61,9 +64,10 @@ async function loadCommunityMaps() {
 // Load a specific community map by ID
 async function loadCommunityMapData(mapId) {
     // Server map
+
     if (serverAvailable && mapId !== 'local-custom') {
         try {
-            const res = await fetch(`/api/map/community/${encodeURIComponent(mapId)}`);
+            const res = await fetch(`${COMMUNITY_BACKEND}/api/map/community/${encodeURIComponent(mapId)}`);
             if (res.ok) {
                 return await res.json();
             }
@@ -92,12 +96,12 @@ async function submitMapForReview(mapData) {
     if (!serverAvailable) {
         return {
             success: false,
-            error: 'Server not available. Run "node server.js" to enable map submissions.'
+            error: 'Server not available. Try again later.'
         };
     }
 
     try {
-        const res = await fetch('/api/submit', {
+        const res = await fetch(`${COMMUNITY_BACKEND}/api/submit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mapData })

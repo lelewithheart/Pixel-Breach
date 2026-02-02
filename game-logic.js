@@ -25,7 +25,205 @@ let gameState = {
         reachExtraction: false
     },
     lockpickTarget: null
+    ,
+    endlessMode: false,
+    endlessScore: 0,
+    endlessWave: 0,
+    endlessHighscore: 0
+    ,
+    currency: parseInt(localStorage.getItem('pb_currency') || '0'),
+    unlocks: JSON.parse(localStorage.getItem('pb_unlocks') || '{}'),
+    endlessModifiers: []
 };
+// === RANDOM MODIFIERS ===
+const ENDLESS_MODIFIERS = [
+    { name: 'Double Enemies', desc: 'Twice as many enemies spawn each wave.', apply: () => {} },
+    { name: 'Fast Enemies', desc: 'Enemies move 50% faster.', apply: () => {} },
+    { name: 'Low Gravity', desc: 'Bullets and grenades arc more slowly.', apply: () => {} },
+    { name: 'Hardcore', desc: 'Player max health halved.', apply: () => { gameState.player.maxHealth = Math.floor(gameState.player.maxHealth / 2); } },
+    { name: 'Rich', desc: 'Earn double currency.', apply: () => {} },
+    { name: 'Armored Enemies', desc: 'Enemies have 50% more health.', apply: () => {} },
+    { name: 'Big Explosions', desc: 'Grenades and explosions have double radius.', apply: () => {} },
+    { name: 'Glass Cannon', desc: 'Player deals double damage but takes double damage.', apply: () => { gameState.player.damageMultiplier = 2; gameState.player.damageTakenMultiplier = 2; } },
+    { name: 'No Cover', desc: 'No cover tiles spawn.', apply: () => {} },
+    { name: 'Elite Enemies', desc: 'Every 3rd enemy is a heavy.', apply: () => {} }
+];
+
+function pickRandomModifiers() {
+    // Pick 1-2 random modifiers per run
+    const shuffled = ENDLESS_MODIFIERS.slice().sort(() => Math.random() - 0.5);
+    return [shuffled[0], shuffled[1]];
+}
+
+function applyEndlessModifiers() {
+    gameState.endlessModifiers.forEach(mod => {
+        if (mod.apply) mod.apply();
+    });
+}
+
+function startEndlessMode() {
+    gameState.endlessMode = true;
+    gameState.endlessScore = 0;
+    gameState.endlessWave = 1;
+    gameState.screen = 'endless';
+    gameState.playing = true;
+    gameState.player = new Player(100, 100);
+    gameState.enemies = [];
+    gameState.civilians = [];
+    gameState.bullets = [];
+    gameState.particles = [];
+    gameState.items = [];
+    gameState.doors = [];
+    gameState.grenades = [];
+    // Pick random modifiers for this run
+    gameState.endlessModifiers = pickRandomModifiers();
+    applyEndlessModifiers();
+    initGrid();
+    spawnEndlessWave();
+    updateUI();
+    showEndlessUI();
+}
+
+function showEndlessUI() {
+    setTimeout(() => {
+        let modText = '';
+        if (gameState.endlessModifiers && gameState.endlessModifiers.length) {
+            modText = '\nModifiers:\n' + gameState.endlessModifiers.map(m => m.name + ': ' + m.desc).join('\n');
+        }
+        alert('Endless Mode!\nWave: ' + gameState.endlessWave + '\nScore: ' + gameState.endlessScore + '\nHighscore: ' + gameState.endlessHighscore + modText);
+    }, 100);
+}
+
+function spawnEndlessWave() {
+    let numEnemies = 3 + Math.floor(gameState.endlessWave * 1.5);
+    if (gameState.endlessModifiers.some(m => m.name === 'Double Enemies')) numEnemies *= 2;
+    for (let i = 0; i < numEnemies; i++) {
+        const ex = 100 + Math.random() * 600;
+        const ey = 100 + Math.random() * 400;
+        let type = Math.random() < 0.2 + 0.05 * gameState.endlessWave ? 'heavy' : 'normal';
+        if (gameState.endlessModifiers.some(m => m.name === 'Elite Enemies') && i % 3 === 2) type = 'heavy';
+        const enemy = new Enemy(ex, ey, type);
+        if (gameState.endlessModifiers.some(m => m.name === 'Armored Enemies')) enemy.maxHealth = Math.floor(enemy.maxHealth * 1.5);
+        if (gameState.endlessModifiers.some(m => m.name === 'Fast Enemies')) enemy.speed = (enemy.speed || 1) * 1.5;
+        gameState.enemies.push(enemy);
+    }
+    // Optional: spawn civilians, items, etc.
+}
+
+function endEndlessMode() {
+    gameState.endlessMode = false;
+    gameState.playing = false;
+    if (gameState.endlessScore > gameState.endlessHighscore) {
+        gameState.endlessHighscore = gameState.endlessScore;
+    }
+    // Award currency for meta-progression
+    let earned = Math.floor(gameState.endlessScore / 50) + gameState.endlessWave * 2;
+    if (gameState.endlessModifiers.some(m => m.name === 'Rich')) earned *= 2;
+    gameState.currency += earned;
+    localStorage.setItem('pb_currency', gameState.currency);
+    showEndlessGameOver(earned);
+    showShopUI();
+}
+
+function showEndlessGameOver() {
+        // Accepts earned currency as argument
+        return function(earned) {
+            setTimeout(() => {
+                alert('GAME OVER!\nWaves survived: ' + gameState.endlessWave + '\nScore: ' + gameState.endlessScore + '\nHighscore: ' + gameState.endlessHighscore + '\nCurrency earned: ' + earned + '\nTotal currency: ' + gameState.currency);
+            }, 200);
+        }
+}
+// === SHOP / META-PROGRESSION ===
+function showShopUI() {
+    // Simple shop UI using prompt for now
+    setTimeout(() => {
+        let msg = 'SHOP - Spend your currency!\n';
+        msg += 'Currency: ' + gameState.currency + '\n';
+        msg += '1. Unlock M4A1 (100)\n';
+        msg += '2. Unlock Shotgun (150)\n';
+        msg += '3. Unlock Sniper (200)\n';
+        msg += '4. +10 Max Health (50)\n';
+        msg += '5. +1 Equipment Slot (75)\n';
+        msg += 'Enter number to buy, or Cancel to skip.';
+        const choice = prompt(msg);
+        if (!choice) return;
+        let bought = false;
+        if (choice === '1' && !gameState.unlocks.m4a1 && gameState.currency >= 100) {
+            gameState.unlocks.m4a1 = true;
+            gameState.currency -= 100;
+            bought = true;
+        } else if (choice === '2' && !gameState.unlocks.shotgun && gameState.currency >= 150) {
+            gameState.unlocks.shotgun = true;
+            gameState.currency -= 150;
+            bought = true;
+        } else if (choice === '3' && !gameState.unlocks.sniper && gameState.currency >= 200) {
+            gameState.unlocks.sniper = true;
+            gameState.currency -= 200;
+            bought = true;
+        } else if (choice === '4' && gameState.currency >= 50) {
+            gameState.player.maxHealth += 10;
+            gameState.currency -= 50;
+            bought = true;
+        } else if (choice === '5' && gameState.currency >= 75) {
+            if (!gameState.player.extraEquipment) gameState.player.extraEquipment = 0;
+            gameState.player.extraEquipment++;
+            gameState.currency -= 75;
+            bought = true;
+        }
+        if (bought) {
+            localStorage.setItem('pb_currency', gameState.currency);
+            localStorage.setItem('pb_unlocks', JSON.stringify(gameState.unlocks));
+            alert('Purchase successful!');
+        } else {
+            alert('Not enough currency or already unlocked.');
+        }
+        // Allow multiple purchases
+        showShopUI();
+    }, 500);
+}
+
+// Call this when all enemies are dead in endless mode
+function checkEndlessWaveClear() {
+    if (gameState.endlessMode && gameState.enemies.length === 0) {
+        gameState.endlessWave++;
+        gameState.endlessScore += 100 * gameState.endlessWave;
+        spawnEndlessWave();
+        showEndlessUI();
+    }
+}
+
+// Patch enemy death logic to call checkEndlessWaveClear
+const _Enemy_takeDamage = Enemy.prototype.takeDamage;
+Enemy.prototype.takeDamage = function(damage) {
+    _Enemy_takeDamage.call(this, damage);
+    if (this.health <= 0 && gameState.endlessMode) {
+        setTimeout(checkEndlessWaveClear, 100);
+    }
+};
+
+// Patch player death logic to end endless mode
+const _Player_takeDamage = Player.prototype.takeDamage;
+Player.prototype.takeDamage = function(damage) {
+    _Player_takeDamage.call(this, damage);
+    if (this.health <= 0 && gameState.endlessMode) {
+        setTimeout(endEndlessMode, 200);
+    }
+};
+
+// Add endless mode button to UI after DOM loaded
+window.addEventListener('DOMContentLoaded', () => {
+    const btn = document.createElement('button');
+    btn.textContent = 'ENDLESS MODE';
+    btn.style.fontSize = '16px';
+    btn.style.padding = '15px';
+    btn.style.margin = '10px';
+    btn.onclick = () => {
+        document.getElementById('home-screen').classList.remove('active');
+        startEndlessMode();
+    };
+    const home = document.getElementById('home-screen').querySelector('.modal-content');
+    home.appendChild(btn);
+});
 
 const keys = {};
 const mouse = { x: 0, y: 0, down: false };

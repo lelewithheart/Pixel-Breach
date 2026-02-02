@@ -18,6 +18,9 @@ function updateUI() {
         gameState.civilians.filter(c => !c.rescued).length + '/' + gameState.civilians.length;
 
     // Update weapon displays
+
+    // Only show unlocked weapons in loadout
+    const unlocks = gameState.unlocks || {};
     const primaryWeapon = player.weapons.primary;
     document.getElementById('primary-weapon').innerHTML = `
         <div>PRIMARY: ${primaryWeapon.name.toUpperCase()}</div>
@@ -188,20 +191,31 @@ document.getElementById('reset-game').addEventListener('click', () => {
 });
 
 // Loadout selection
+
+// Only allow selection of unlocked weapons/equipment
 document.querySelectorAll('.loadout-option').forEach(option => {
-    option.addEventListener('click', () => {
-        AudioSystem.playClick();
-        const type = option.dataset.type;
-        const weapon = option.dataset.weapon;
-
-        // Deselect others of same type
-        document.querySelectorAll(`.loadout-option[data-type="${type}"]`).forEach(opt => {
-            opt.classList.remove('selected');
+    const type = option.dataset.type;
+    const weapon = option.dataset.weapon;
+    let locked = false;
+    if (type === 'primary' && (weapon === 'm4a1' && !(gameState.unlocks && gameState.unlocks.m4a1))) locked = true;
+    if (type === 'primary' && (weapon === 'shotgun' && !(gameState.unlocks && gameState.unlocks.shotgun))) locked = true;
+    if (type === 'primary' && (weapon === 'sniper' && !(gameState.unlocks && gameState.unlocks.sniper))) locked = true;
+    if (locked) {
+        option.classList.add('locked');
+        option.title = 'Unlock in Endless Mode Shop!';
+        option.style.opacity = 0.5;
+        option.style.pointerEvents = 'none';
+    } else {
+        option.addEventListener('click', () => {
+            AudioSystem.playClick();
+            // Deselect others of same type
+            document.querySelectorAll(`.loadout-option[data-type="${type}"]`).forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            option.classList.add('selected');
+            gameState.loadout[type] = weapon;
         });
-
-        option.classList.add('selected');
-        gameState.loadout[type] = weapon;
-    });
+    }
 });
 
 // Editor tools

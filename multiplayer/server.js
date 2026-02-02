@@ -59,6 +59,19 @@ class ServerCVCGameMode {
 
         this.generateDefaultSpawnPoints();
 
+        // --- Map grid loading (default map) ---
+        // For now, load a static map from maps/mission-01-training.json
+        try {
+            const mapPath = path.join(__dirname, '../maps/mission-01-training.json');
+            const mapJson = fs.readFileSync(mapPath, 'utf8');
+            const mapData = JSON.parse(mapJson);
+            this.mapGrid = mapData.grid;
+        } catch (e) {
+            // Fallback: empty grid (all floor)
+            this.mapGrid = Array.from({ length: SERVER_GRID_HEIGHT }, () => Array(SERVER_GRID_WIDTH).fill(0));
+            console.error('[Server] Failed to load map grid:', e);
+        }
+
         this.scoring.reset();
         this.players.clear();
         this.deadPlayers.clear();
@@ -559,11 +572,27 @@ class ServerCVCGameMode {
     checkBulletHit(shooter, angle, damage) {
         const maxDist = 400;
         const steps = 40;
-
+        const tileSize = typeof SERVER_TILE_SIZE !== 'undefined' ? SERVER_TILE_SIZE : 20;
+        // Assume map grid is available as this.mapGrid (2D array of tile types)
+        // If not, add a property to ServerCVCGameMode and set it when loading the map
         for (let i = 1; i <= steps; i++) {
             const dist = (maxDist / steps) * i;
             const checkX = shooter.x + Math.cos(angle) * dist;
             const checkY = shooter.y + Math.sin(angle) * dist;
+
+            // Wall collision check
+            if (this.mapGrid && Array.isArray(this.mapGrid)) {
+                const gridX = Math.floor(checkX / tileSize);
+                const gridY = Math.floor(checkY / tileSize);
+                if (
+                    gridY >= 0 && gridY < this.mapGrid.length &&
+                    gridX >= 0 && gridX < this.mapGrid[0].length &&
+                    this.mapGrid[gridY][gridX] === 1 // 1 = wall
+                ) {
+                    // Bullet hits wall, stop
+                    return;
+                }
+            }
 
             let hit = false;
             this.players.forEach((target, targetId) => {
