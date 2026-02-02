@@ -181,3 +181,18 @@ Pixel-Breach/
 ## 📄 License
 
 Open source. See LICENSE for details.
+
+---
+
+## ⚡ Deployment Notes
+
+- **Frontend (Static Site):**
+  - Deploy the contents of the repository (except backend/server files) to GitHub Pages for a static, browser-playable version.
+  - Example: https://lelewithheart.github.io/Pixel-Breach
+
+- **Backend (Community Features):**
+  - The Node.js backend (server.js) is deployed to Render at https://pixel-breach.onrender.com.
+  - All community map sharing, review, and admin features are handled by this backend.
+  - You do NOT need to host your own backend; the game is already connected to the official server.
+
+> **Note:** GitHub Pages cannot run Node.js servers. Multiplayer and community features requiring a backend will only work when the backend is online and accessible.
