@@ -179,9 +179,9 @@ const AudioSystem = {
     },
 
     playReload() {
+        if (!this.sfxEnabled || !this.initialized) return;
         this.resume();
 
-        const now = this.context.currentTime;
         //mag release
         setTimeout(() => this.playBeep(300, 0.05, "square"), 0);
         //slide
@@ -281,6 +281,44 @@ const AudioSystem = {
         } else {
             this.playBeep(300, 0.05, "square");
         }
+    },
+
+    playHitmarker() {
+        if (!this.sfxEnabled || !this.initialized) return;
+        this.resume();
+
+        this.playBeep(1400, 0.025, "square");
+    },
+
+    playDryFire() {
+        if (!this.sfxEnabled || !this.initialized) return;
+        this.resume();
+
+        this.playBeep(900, 0.02, "square");
+        setTimeout(() => this.playBeep(500, 0.03, "triangle"), 30);
+    },
+
+    playSwap() {
+        if (!this.sfxEnabled || !this.initialized) return;
+        this.resume();
+
+        this.playBeep(350, 0.04, "triangle");
+        setTimeout(() => this.playBeep(550, 0.04, "triangle"), 90);
+    },
+
+    playHeartbeat() {
+        if (!this.sfxEnabled || !this.initialized) return;
+        this.resume();
+
+        this.playBeep(55, 0.12, "sine");
+        setTimeout(() => this.playBeep(48, 0.16, "sine"), 180);
+    },
+
+    playSmoke() {
+        if (!this.sfxEnabled || !this.initialized) return;
+        this.resume();
+
+        this.playNoise(0.5, 900, 200);
     },
 
     playEnemyDeath() {

@@ -21,7 +21,8 @@ const MapLoader = {
             gameState.particles = [];
 
             if (mapData.grid) {
-                gameState.grid = mapData.grid;
+                // Copy, so breaching charges and "No Cover" never change the saved map.
+                gameState.grid = JSON.parse(JSON.stringify(mapData.grid));
             } else {
                 initGrid();
             }
@@ -66,15 +67,16 @@ const MapLoader = {
                 }
             }
 
-            if (mapData.metadata) {
-                gameState.currentMission = {
-                    id: "custom",
-                    name: mapData.metadata.name || "Custom Map",
-                    description: mapData.metadata.description || "",
-                    author: mapData.metadata.author || "Unknown",
-                    objectives: this.getObjectivesList(mapData.objectives)
-                };
-            }
+            const meta = mapData.metadata || {};
+            gameState.currentMission = {
+                id: "custom",
+                name: meta.name || "Custom Map",
+                description: meta.description || "",
+                author: meta.author || "Unknown",
+                difficulty: meta.difficulty || "custom",
+                tutorialSteps: [],
+                objectives: this.getObjectivesList(mapData.objectives)
+            };
 
             updateUI();
             return true;

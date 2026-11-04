@@ -51,20 +51,21 @@ Levels are saved in your browser. To share one, export it as a file in the edito
 
 **Movement**
 - `WASD` — Move
-- `Shift` — Sprint
-- `Ctrl` — Crouch
+- `Shift` — Sprint (wider spread)
+- `C` — Crouch (tighter spread, slower)
 
 **Combat**
 - `Mouse` — Aim
 - `Left Click` — Fire
 - `R` — Reload
-- `1/2/3` — Switch weapons
+- `1/2` or mouse wheel — Switch weapons
 
 **Tactical**
-- `E` — Interact (doors, hostages)
+- `E` — Rescue hostage, open door, lockpick
 - `Q` — Lean left
 - `F` — Lean right
-- `Space` — Use equipment
+- `Space` — Use equipment (grenades are thrown in your aim direction)
+- `Esc` — Pause
 
 **Editor**
 - `Mouse` — Place/erase tiles
@@ -114,6 +115,8 @@ Pixel-Breach/
 ├── classes.js           # Entity classes
 ├── game-logic.js        # Core game loop
 ├── ui.js                # UI handling
+├── pb-hud.js            # In-game HUD on the canvas
+├── pb-art.js            # Drawn artwork and lighting
 ├── audio.js             # Sound system
 ├── maps-official.js     # Official missions
 ├── maps-community.js    # Community map loader
