@@ -2,7 +2,7 @@ const CVC_LOADOUTS = {
     cops: {
         primary: {
             mp5: {
-                name: "MP5",
+                name: "Viper SMG",
                 damage: 20,
                 fireRate: 100,
                 magSize: 30,
@@ -13,7 +13,7 @@ const CVC_LOADOUTS = {
                 description: "Reliable submachine gun, balanced performance"
             },
             m4a1: {
-                name: "M4A1",
+                name: "Falcon Rifle",
                 damage: 30,
                 fireRate: 120,
                 magSize: 30,
@@ -66,7 +66,7 @@ const CVC_LOADOUTS = {
         },
         secondary: {
             m1911: {
-                name: "M1911",
+                name: "Warden .45",
                 damage: 35,
                 fireRate: 300,
                 magSize: 7,
@@ -77,7 +77,7 @@ const CVC_LOADOUTS = {
                 description: "High damage pistol, reliable sidearm"
             },
             glock: {
-                name: "Glock 17",
+                name: "Striker 9",
                 damage: 25,
                 fireRate: 200,
                 magSize: 17,

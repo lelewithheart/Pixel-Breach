@@ -705,53 +705,6 @@ document.getElementById("outline-room").addEventListener("click", () => {
 });
 
 // Submit map for review
-document.getElementById("submit-review").addEventListener("click", async () => {
-    const statusDiv = document.getElementById("submit-status");
-
-    // Validate map first
-    let hasSpawn = false;
-    let hasExit = false;
-    for (let y = 0; y < GRID_HEIGHT; y++) {
-        for (let x = 0; x < GRID_WIDTH; x++) {
-            if (editorState.grid[y][x] === 2) hasSpawn = true;
-            if (editorState.grid[y][x] === 4) hasExit = true;
-        }
-    }
-
-    if (!hasSpawn || !hasExit) {
-        statusDiv.innerHTML = '<span style="color: #f00;">❌ Map needs a spawn point AND an exit point!</span>';
-        return;
-    }
-
-    const mapName = document.getElementById("map-name").value.trim();
-    if (!mapName || mapName === "Untitled Mission") {
-        statusDiv.innerHTML = '<span style="color: #f00;">❌ Please enter a map name!</span>';
-        return;
-    }
-
-    statusDiv.innerHTML = '<span style="color: #ff0;">⏳ Submitting...</span>';
-
-    const mapData = createMapData();
-
-    try {
-        const res = await fetch('/api/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mapData })
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-            statusDiv.innerHTML = '<span style="color: #0f0;">✅ Map submitted for review! An admin will review it soon.</span>';
-        } else {
-            statusDiv.innerHTML = `<span style="color: #f00;">❌ ${data.error}</span>`;
-        }
-    } catch (e) {
-        statusDiv.innerHTML = '<span style="color: #f00;">❌ Server not available. Run "node server.js" to enable submissions.</span>';
-    }
-});
-
 document.addEventListener("keydown", (e) => {
     if (e.ctrlKey && e.key === "z") {
         e.preventDefault();
