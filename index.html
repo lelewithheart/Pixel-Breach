@@ -94,7 +94,7 @@
                 <canvas id="minimap" width="180" height="180"></canvas>
             </div>
 
-            <div class="panel-selection">
+            <div class="panel-section">
                 <h3>AUDIO</h3>
                 <div class="audio-controls">
                     <div class="stat-line">
@@ -238,16 +238,16 @@
 
     <!-- Home Screen -->
     <div id="home-screen" class="modal active">
-        <div class="modal-content" style="text-align: center;">
-            <h1 style="font-size: 36px; color: #0f0; margin-bottom: 30px;">PIXEL BREACH</h1>
-            <h2 style="font-size: 18px; color: #888; margin-bottom: 40px;">Tactical SWAT Operations</h2>
-            <button id="btn-campaign" style="font-size: 16px; padding: 15px; margin: 10px;">CAMPAIGN</button>
-            <button id="btn-endless" style="font-size: 16px; padding: 15px; margin: 10px;">ENDLESS MODE</button>
-            <button id="btn-shop" style="font-size: 16px; padding: 15px; margin: 10px;">FIELD SHOP</button>
-            <button id="btn-pack" style="font-size: 16px; padding: 15px; margin: 10px;">MISSION PACK</button>
-            <button id="btn-community" style="font-size: 16px; padding: 15px; margin: 10px;">MY LEVELS</button>
-            <button id="btn-load-map" style="font-size: 16px; padding: 15px; margin: 10px;">LOAD MAP FILE</button>
-            <button id="btn-editor-home" style="font-size: 16px; padding: 15px; margin: 10px;">LEVEL EDITOR</button>
+        <div class="modal-content pb-home" style="text-align: center;">
+            <h1 class="pb-logo">PIXEL BREACH</h1>
+            <p class="pb-tagline">Tactical Breach Operations</p>
+            <button id="btn-campaign" class="pb-menu-btn">CAMPAIGN</button>
+            <button id="btn-endless" class="pb-menu-btn">ENDLESS MODE</button>
+            <button id="btn-shop" class="pb-menu-btn">FIELD SHOP</button>
+            <button id="btn-pack" class="pb-menu-btn">MISSION PACK</button>
+            <button id="btn-community" class="pb-menu-btn">MY LEVELS</button>
+            <button id="btn-load-map" class="pb-menu-btn">LOAD MAP FILE</button>
+            <button id="btn-editor-home" class="pb-menu-btn">LEVEL EDITOR</button>
             <input type="file" id="map-file-input" accept=".json" style="display: none;">
             <p class="pb-dim" style="margin-top: 16px; font-size: 11px;">© Leonhard Yvon · <a href="https://kelvik.at/impressum" target="_blank" rel="noopener">Imprint</a> · <a href="https://kelvik.at/datenschutz" target="_blank" rel="noopener">Privacy</a></p>
         </div>
@@ -295,6 +295,7 @@
     <script src="maps-pack.js"></script>
     <script src="maps-community.js"></script>
     <script src="pb-ui.js"></script>
+    <script src="pb-art.js"></script>
     <script src="classes.js"></script>
     <script src="audio.js"></script>
     <script src="map-loader.js"></script>

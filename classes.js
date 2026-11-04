@@ -298,29 +298,10 @@ class Player {
     }
 
     draw(ctx) {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle);
-
-        //Body
-        ctx.fillStyle = "#00f";
-        ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
-
-        //Direction Indicator
-        ctx.fillStyle = "#0ff";
-        ctx.fillRect(this.size / 2 - 2, -2, 8, 4);
-
-        //Lean Indicator
-        if (this.lean !== "none") {
-            ctx.fillStyle = "#ff0";
-            const leanOffset = this.lean === "left" ? -8 : 8;
-            ctx.fillRect(leanOffset, -8, 4, 4);
+        Art.soldier(ctx, this, 'player');
+        if (this.health < this.maxHealth) {
+            Art.bar(ctx, this.x, this.y - 20, this.health / this.maxHealth, '#5dff9f');
         }
-
-        ctx.restore();
-
-        ctx.fillStyle = "#f00";
-        ctx.fillRect(this.x - 15, this.y - 25, 30 * (this.health / this.maxHealth), 3);
     }
 }
 
@@ -695,6 +676,7 @@ class Enemy {
         }
 
         AudioSystem.playEnemyDeath();
+        Art.decal(this.x, this.y, 'blood');
 
         for (let i = 0; i < 10; i++) {
             gameState.particles.push(new Particle(
@@ -708,36 +690,31 @@ class Enemy {
     }
 
     draw(ctx) {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle);
+        Art.soldier(ctx, this, this.type === 'heavy' ? 'heavy' : 'normal');
 
-        // Body
-        ctx.fillStyle = this.type === 'heavy' ? '#a00' : '#f00';
-        ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
-
-        // Direction indicator
-        ctx.fillStyle = '#f80';
-        ctx.fillRect(this.size / 2 - 2, -2, 8, 4);
-
-        ctx.restore();
-
-        // Health bar
         if (this.health < this.maxHealth) {
-            ctx.fillStyle = '#0f0';
-            ctx.fillRect(this.x - 15, this.y - 25, 30 * (this.health / this.maxHealth), 3);
+            Art.bar(ctx, this.x, this.y - 20, this.health / this.maxHealth, '#ff5a4a');
         }
 
-        // State indicator
+        // Spotted you
         if (this.state === 'engage') {
-            ctx.fillStyle = '#ff0';
-            ctx.fillRect(this.x - 3, this.y - 30, 6, 6);
+            ctx.fillStyle = '#ffd25a';
+            ctx.font = 'bold 13px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('!', this.x, this.y - 23);
+            ctx.textAlign = 'left';
         }
 
-        // Stunned indicator
+        // Stunned
         if (this.stunned) {
-            ctx.fillStyle = '#ff0';
-            ctx.fillText('⚡', this.x - 5, this.y - 25);
+            const t = Date.now() * 0.008;
+            ctx.fillStyle = '#ffe680';
+            for (let i = 0; i < 3; i++) {
+                const a = t + i * 2.09;
+                ctx.beginPath();
+                ctx.arc(this.x + Math.cos(a) * 11, this.y - 13 + Math.sin(a) * 3, 1.6, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
     }
 }
@@ -784,23 +761,7 @@ class Civilian {
     }
 
     draw(ctx) {
-        if (this.dead) {
-            //grey X
-            ctx.fillStyle = "#666";
-            ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
-            ctx.fillStyle = "#f00";
-            ctx.font = "16px monospace";
-            ctx.fillText("✕", this.x - 6, this.y + 5);
-            return;
-        }
-
-        ctx.fillStyle = this.rescued ? "#0f0" : "#ff0";
-        ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
-
-        //Indicator
-        ctx.fillStyle = this.rescued ? "#0f0" : "#ff0";
-        ctx.font = "12px monospace";
-        ctx.fillText(this.rescued ? '✓' : '!', this.x - 4, this.y - 15);
+        Art.hostage(ctx, this);
     }
 }
 
@@ -833,31 +794,7 @@ class Door {
     }
 
     draw(ctx) {
-        const gridX = Math.floor(this.x / TILE_SIZE);
-        const gridY = Math.floor(this.y / TILE_SIZE);
-        const px = gridX * TILE_SIZE;
-        const py = gridY * TILE_SIZE;
-
-        if (this.open) {
-            ctx.fillStyle = '#555';
-            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-        } else {
-            ctx.fillStyle = this.locked ? '#820' : '#640';
-            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-
-            // Lock indicator
-            if (this.locked) {
-                ctx.fillStyle = '#ff0';
-                ctx.font = '14px monospace';
-                ctx.fillText('🔒', px + 3, py + 15);
-            }
-
-            // Health bar for locked doors
-            if (this.locked && this.health < this.maxHealth) {
-                ctx.fillStyle = '#f00';
-                ctx.fillRect(px, py - 3, TILE_SIZE * (this.health / this.maxHealth), 2);
-            }
-        }
+        Art.door(ctx, this);
     }
 }
 
@@ -884,7 +821,7 @@ class Grenade {
         this.timer -= 16;
 
         if (this.timer <= 0 && !this.exploded) {
-            this.exploded();
+            this.explode();
             return false;
         }
 
@@ -895,6 +832,7 @@ class Grenade {
         this.exploded = true;
 
         AudioSystem.playExplosion();
+        Art.explosion(this.x, this.y, this.blastRadius);
 
         //particles
         for (let i = 0; i < 30; i++) {
@@ -961,11 +899,7 @@ class Grenade {
     }
 
     draw(ctx) {
-        const flash = this.timer < 1000 && Math.floor(this.timer / 100) % 2 === 0;
-        ctx.fillStyle = flash ? '#f00' : '#444';
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
-        ctx.fill();
+        Art.grenade(ctx, this);
     }
 }
 
@@ -976,6 +910,7 @@ class Bullet {
         this.angle = angle;
         this.damage = damage;
         this.owner = owner;
+        Art.muzzle(x, y, angle);
         this.speed = 15;
         this.lifetime = 100;
     }
@@ -1069,8 +1004,7 @@ class Bullet {
     }
 
     draw(ctx) {
-        ctx.fillStyle = this.owner === "player" ? "#ff0" : "#f80";
-        ctx.fillRect(this.x - 2, this.y - 2, 4, 4);
+        Art.bullet(ctx, this);
     }
 }
 
@@ -1088,14 +1022,13 @@ class Particle {
     update() {
         this.x += this.vx;
         this.y += this.vy;
-        this.lifetime--;
+        this.vx *= 0.96;
+        this.vy *= 0.96;
+        this.lifetime -= 16; // lifetime is in milliseconds
         return this.lifetime > 0;
     }
 
     draw(ctx) {
-        ctx.fillStyle = this.color;
-        ctx.globalAlpha = this.lifetime / this.maxLifetime;
-        ctx.fillRect(this.x - 2, this.y - 2, 2, 2)
-        ctx.globalAlpha = 1;
+        Art.particle(ctx, this);
     }
 }

@@ -12,6 +12,7 @@ const MapLoader = {
                 return false;
             }
 
+            Art.reset();
             gameState.doors = [];
             gameState.enemies = [];
             gameState.civilians = [];

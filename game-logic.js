@@ -63,6 +63,7 @@ function applyEndlessModifiers() {
 
 function startEndlessMode() {
     document.getElementById('game-container').style.display = 'flex';
+    Art.reset();
     gameState.endlessMode = true;
     gameState.endlessScore = 0;
     gameState.endlessWave = 1;
@@ -300,6 +301,7 @@ function loadMission(missionId) {
     if (!mission) return;
 
     gameState.currentMission = mission;
+    Art.reset();
     gameState.doors = [];
     gameState.enemies = [];
     gameState.civilians = [];
@@ -464,62 +466,15 @@ function gameLoop() {
         }
     }
 
+    Art.drawFlashes(ctx);
+    Art.drawLight(ctx);
+
     drawMinimap();
     requestAnimationFrame(gameLoop);
 }
 
 function drawGrid() {
-    for (let y = 0; y < GRID_HEIGHT; y++) {
-        for (let x = 0; x < GRID_WIDTH; x++) {
-            const tile = gameState.grid[y][x];
-            const px = x * TILE_SIZE, py = y * TILE_SIZE;
-            let color;
-            switch (tile) {
-                case 1: color = '#4b5563'; break; // Wall
-                case 2: color = '#14532d'; break; // Spawn
-                case 3: color = '#6b5a3a'; break; // Cover
-                case 4: color = '#0b3b1e'; break; // Exit
-                default: color = (x + y) % 2 ? '#1d2127' : '#20252c'; break; // Floor
-            }
-            ctx.fillStyle = color;
-            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-            if (tile === 1) {
-                // Lit top edge and shaded base give walls some height.
-                ctx.fillStyle = '#6b7687';
-                ctx.fillRect(px, py, TILE_SIZE, 3);
-                ctx.fillStyle = '#2f3641';
-                ctx.fillRect(px, py + TILE_SIZE - 3, TILE_SIZE, 3);
-            } else if (tile === 3) {
-                ctx.strokeStyle = '#3f3421';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(px + 3, py + 3, TILE_SIZE - 6, TILE_SIZE - 6);
-                ctx.lineWidth = 1;
-            }
-
-            // Add special marking for exit tiles
-            if (tile === 4) {
-                // Draw animated extraction point marker
-                const time = Date.now() / 1000;
-                const pulse = Math.sin(time * EXTRACTION_PULSE_FREQUENCY) * EXTRACTION_PULSE_AMPLITUDE + EXTRACTION_PULSE_BASE;
-                ctx.fillStyle = `rgba(0, 255, 0, ${pulse})`;
-                ctx.fillRect(x * TILE_SIZE + 3, y * TILE_SIZE + 3, TILE_SIZE - 6, TILE_SIZE - 6);
-
-                // Draw "EXIT" text
-                ctx.fillStyle = '#0f0';
-                ctx.font = 'bold 10px monospace';
-                ctx.fillText('EXIT', x * TILE_SIZE + 2, y * TILE_SIZE + 13);
-
-                // Draw arrow pointing down
-                ctx.fillStyle = '#0f0';
-                ctx.beginPath();
-                ctx.moveTo(x * TILE_SIZE + 10, y * TILE_SIZE + 5);
-                ctx.lineTo(x * TILE_SIZE + 7, y * TILE_SIZE + 2);
-                ctx.lineTo(x * TILE_SIZE + 13, y * TILE_SIZE + 2);
-                ctx.closePath();
-                ctx.fill();
-            }
-        }
-    }
+    Art.drawMap(ctx);
 }
 
 // Draw minimap
@@ -528,14 +483,14 @@ function drawMinimap() {
     const mctx = minimapCanvas.getContext('2d');
     const scale = 180 / (GRID_WIDTH * TILE_SIZE);
 
-    mctx.fillStyle = '#000';
+    mctx.fillStyle = '#0b0f14';
     mctx.fillRect(0, 0, 180, 180);
 
     // Draw grid
     for (let y = 0; y < GRID_HEIGHT; y++) {
         for (let x = 0; x < GRID_WIDTH; x++) {
             if (gameState.grid[y][x] === 1) {
-                mctx.fillStyle = '#666';
+                mctx.fillStyle = '#4b5668';
                 mctx.fillRect(x * TILE_SIZE * scale, y * TILE_SIZE * scale,
                     TILE_SIZE * scale, TILE_SIZE * scale);
             }

@@ -354,3 +354,160 @@ button:disabled {
     font-size: 13px;
     text-align: center;
 }
+
+/* Visual pass */
+:root {
+    --pb-bg: #0c1016;
+    --pb-panel: #141a22;
+    --pb-panel-2: #1b222c;
+    --pb-line: #2c3644;
+    --pb-accent: #55e6ff;
+    --pb-amber: #ffc857;
+}
+
+body {
+    background: radial-gradient(circle at 50% 30%, #1a2230 0%, var(--pb-bg) 65%);
+}
+
+#left-panel, #right-panel {
+    background: var(--pb-panel);
+    border-color: var(--pb-line);
+}
+
+.panel-section {
+    background: var(--pb-panel-2);
+    border: 1px solid var(--pb-line);
+    border-radius: 4px;
+}
+
+.panel-section h3 {
+    color: var(--pb-accent);
+    border-color: var(--pb-line);
+    letter-spacing: 1px;
+}
+
+canvas {
+    border: 1px solid var(--pb-line);
+    border-radius: 4px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
+button {
+    background: var(--pb-panel-2);
+    border: 1px solid var(--pb-line);
+    border-radius: 3px;
+    letter-spacing: 1px;
+    transition: border-color 0.12s, background 0.12s, transform 0.08s;
+}
+
+button:hover:not(:disabled) {
+    background: #243040;
+    border-color: var(--pb-accent);
+}
+
+button:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+button.active {
+    background: #103544;
+    border-color: var(--pb-accent);
+}
+
+.stat-bar {
+    background: #0d1117;
+    border-color: var(--pb-line);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.health-bar { background: linear-gradient(90deg, #d7263d, #ff6b5e); }
+.armor-bar { background: linear-gradient(90deg, #2b6cdb, #55e6ff); }
+.stamina-bar { background: linear-gradient(90deg, #e09f1f, #ffd76a); }
+
+.weapon-slot {
+    background: #10151c;
+    border-color: var(--pb-line);
+    border-radius: 3px;
+}
+
+.weapon-slot.active {
+    background: #10303c;
+    border-color: var(--pb-accent);
+}
+
+.modal {
+    background: radial-gradient(circle at 50% 40%, rgba(20, 32, 46, 0.94), rgba(5, 7, 11, 0.98));
+}
+
+.modal-content {
+    background: var(--pb-panel);
+    border: 1px solid var(--pb-line);
+    border-radius: 6px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7);
+}
+
+.modal-content h2 {
+    color: var(--pb-accent);
+    letter-spacing: 2px;
+}
+
+.loadout-option {
+    background: var(--pb-panel-2);
+    border-color: var(--pb-line);
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.loadout-option strong {
+    color: var(--pb-amber);
+}
+
+.loadout-option:not(.locked):hover {
+    background: #243040;
+}
+
+.loadout-option.selected {
+    background: #10303c;
+    border-color: var(--pb-accent);
+}
+
+.pb-home {
+    width: min(520px, calc(100vw - 32px));
+    padding: 34px 40px 22px;
+}
+
+.pb-logo {
+    font-size: 44px;
+    letter-spacing: 6px;
+    color: #fff;
+    text-shadow: 3px 0 0 #ff3d5a, -3px 0 0 var(--pb-accent);
+}
+
+.pb-tagline {
+    margin: 8px 0 26px;
+    color: var(--pb-amber);
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+}
+
+.pb-menu-btn {
+    font-size: 14px;
+    padding: 12px;
+    margin: 6px 0;
+}
+
+#btn-campaign {
+    background: #10303c;
+    border-color: var(--pb-accent);
+    font-size: 16px;
+    font-weight: bold;
+}
+
+#center-panel > div {
+    display: flex;
+    gap: 8px;
+    width: 800px;
+}
