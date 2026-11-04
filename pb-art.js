@@ -289,6 +289,28 @@ const Art = (() => {
                 ctx.beginPath();
                 ctx.arc(0, 0, 34, 0, TAU);
                 ctx.fill();
+            } else if (d.kind === 'body') {
+                const p = PALETTES[d.type === 'heavy' ? 'heavy' : 'normal'];
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.ellipse(2, 3, 12, 7, 0, 0, TAU);
+                ctx.fill();
+                ctx.fillStyle = p.cloth;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 11, 6, 0, 0, TAU);
+                ctx.fill();
+                ctx.fillStyle = p.vest;
+                roundRect(ctx, -7, -4, 11, 8, 2);
+                ctx.fill();
+                ctx.fillStyle = p.helmet;
+                ctx.beginPath();
+                ctx.arc(9, -1, 4.6, 0, TAU);
+                ctx.fill();
+                ctx.strokeStyle = p.cloth;
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                line(ctx, -4, 5, -11, 10);
+                line(ctx, 3, -5, 1, -12);
             } else {
                 ctx.fillStyle = 'rgba(95,14,18,0.8)';
                 ctx.beginPath();
@@ -337,7 +359,7 @@ const Art = (() => {
         return 7;
     }
 
-    function soldier(ctx, o, kind) {
+    function soldier(ctx, o, kind, opts = {}) {
         const p = PALETTES[kind];
         const s = o.size / 16;
         const stride = steps(o);
@@ -405,6 +427,50 @@ const Art = (() => {
         ctx.arc(0.5, 0, 4.4, -0.7, 0.7);
         ctx.stroke();
         ctx.restore();
+
+        if (opts.flash) {
+            ctx.fillStyle = 'rgba(255,255,255,0.75)';
+            ctx.beginPath();
+            ctx.arc(o.x, o.y, 10 * s, 0, TAU);
+            ctx.fill();
+        }
+    }
+
+    /** Progress ring around an entity (reload, weapon swap). */
+    function ring(ctx, x, y, r, pct, color) {
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, TAU);
+        ctx.stroke();
+        ctx.strokeStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0, Math.min(1, pct)));
+        ctx.stroke();
+    }
+
+    function body(x, y, angle, type) {
+        if (decals.length > 90) decals.shift();
+        decals.push({ x, y, kind: 'body', a: angle + 1.2, type, seed: Math.random() * 1000 });
+    }
+
+    function smoke(ctx, s) {
+        const r = s.radius();
+        if (r <= 0) return;
+        const t = s.age * 0.0004;
+        const fade = Math.min(1, (SMOKE_DURATION_MS - s.age) / 1500);
+        for (let i = 0; i < 7; i++) {
+            const a = s.seed + i * 1.7 + t;
+            const ox = Math.cos(a) * r * 0.35, oy = Math.sin(a * 1.3) * r * 0.35;
+            const rr = r * (0.55 + 0.1 * Math.sin(a * 2));
+            const g = ctx.createRadialGradient(s.x + ox, s.y + oy, 0, s.x + ox, s.y + oy, rr);
+            g.addColorStop(0, `rgba(205,210,220,${0.42 * fade})`);
+            g.addColorStop(1, 'rgba(205,210,220,0)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(s.x + ox, s.y + oy, rr, 0, TAU);
+            ctx.fill();
+        }
     }
 
     function bar(ctx, x, y, pct, color) {
@@ -578,10 +644,16 @@ const Art = (() => {
         flashes.push({ x, y, r, life: 16, maxLife: 16, kind: 'blast' });
         decal(x, y, 'scorch');
     }
+    function flashburst(x, y) {
+        flashes.push({ x, y, r: FLASHBANG_RADIUS, life: 14, maxLife: 14, kind: 'flashburst' });
+    }
     function drawFlashes(ctx) {
         for (let i = flashes.length - 1; i >= 0; i--) {
             const f = flashes[i];
-            if (f.kind === 'muzzle') {
+            if (f.kind === 'flashburst') {
+                const k = f.life / f.maxLife;
+                glow(ctx, f.x, f.y, f.r * (1.2 - k * 0.4), `rgba(255,255,255,${0.95 * k})`);
+            } else if (f.kind === 'muzzle') {
                 glow(ctx, f.x, f.y, 26, 'rgba(255,190,90,0.75)');
                 ctx.save();
                 ctx.translate(f.x, f.y);
@@ -609,17 +681,20 @@ const Art = (() => {
 
     // ── Flashlight: walls cut the light, the rest of the room stays dim ──
     const dark = document.createElement('canvas');
-    dark.width = 400;
-    dark.height = 300;
+    dark.width = GRID_WIDTH * TILE_SIZE;
+    dark.height = GRID_HEIGHT * TILE_SIZE;
     const dctx = dark.getContext('2d');
-    const RAYS = 72;
+    const RAYS = 90;
+    const DARKNESS = 0.78; // How dark the room is outside the flashlight
 
     function castRay(x, y, a, max) {
         const dx = Math.cos(a), dy = Math.sin(a);
         const g = gameState.grid;
-        for (let d = 8; d < max; d += 6) {
+        for (let d = 8; d < max; d += 5) {
             const gx = Math.floor((x + dx * d) / TILE_SIZE), gy = Math.floor((y + dy * d) / TILE_SIZE);
             if (g[gy]?.[gx] === 1) return d;
+            const door = doorAtTile(gx, gy);
+            if (door && !door.open) return d;
         }
         return max;
     }
@@ -635,46 +710,62 @@ const Art = (() => {
         dctx.closePath();
     }
 
+    /** Darkness layer in world space. Draw it with the camera transform active. */
     function drawLight(ctx) {
         const p = gameState.player;
-        if (!p || gameState.editorMode) return;
-        dctx.setTransform(0.5, 0, 0, 0.5, 0, 0);
+        if (!p) return;
+        const W = dark.width, H = dark.height;
+        dctx.setTransform(1, 0, 0, 1, 0, 0);
         dctx.globalCompositeOperation = 'source-over';
-        dctx.clearRect(0, 0, 800, 600);
-        dctx.fillStyle = 'rgba(5,8,16,0.3)';
-        dctx.fillRect(0, 0, 800, 600);
+        dctx.clearRect(0, 0, W, H);
+        dctx.fillStyle = `rgba(5,8,16,${DARKNESS})`;
+        dctx.fillRect(0, 0, W, H);
         dctx.globalCompositeOperation = 'destination-out';
 
-        const near = dctx.createRadialGradient(p.x, p.y, 8, p.x, p.y, 96);
-        near.addColorStop(0, 'rgba(0,0,0,0.75)');
+        const near = dctx.createRadialGradient(p.x, p.y, 8, p.x, p.y, PLAYER_NEAR_LIGHT);
+        near.addColorStop(0, 'rgba(0,0,0,0.9)');
         near.addColorStop(1, 'rgba(0,0,0,0)');
-        fan(p.x, p.y, 0, TAU, 96);
+        fan(p.x, p.y, 0, TAU, PLAYER_NEAR_LIGHT);
         dctx.fillStyle = near;
         dctx.fill();
 
         const half = PLAYER_VIEW_ANGLE / 2;
         const beam = dctx.createRadialGradient(p.x, p.y, 16, p.x, p.y, 340);
         beam.addColorStop(0, 'rgba(0,0,0,1)');
-        beam.addColorStop(0.6, 'rgba(0,0,0,0.75)');
+        beam.addColorStop(0.6, 'rgba(0,0,0,0.8)');
         beam.addColorStop(1, 'rgba(0,0,0,0)');
         fan(p.x, p.y, p.angle - half, p.angle + half, 340);
         dctx.fillStyle = beam;
         dctx.fill();
+
+        // Smoke clouds glow a little, so they are visible in the dark.
+        for (const s of gameState.smokes) {
+            const r = s.radius();
+            if (r <= 0) continue;
+            const g = dctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r);
+            g.addColorStop(0, 'rgba(0,0,0,0.5)');
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            dctx.fillStyle = g;
+            dctx.beginPath();
+            dctx.arc(s.x, s.y, r, 0, TAU);
+            dctx.fill();
+        }
         dctx.globalCompositeOperation = 'source-over';
 
-        ctx.drawImage(dark, 0, 0, 800, 600);
+        ctx.drawImage(dark, 0, 0, W, H);
+    }
 
-        const v = ctx.createRadialGradient(400, 300, 260, 400, 300, 520);
-        v.addColorStop(0, 'rgba(0,0,0,0)');
-        v.addColorStop(1, 'rgba(0,0,0,0.34)');
-        ctx.fillStyle = v;
-        ctx.fillRect(0, 0, 800, 600);
-
-        const hurt = 1 - p.health / p.maxHealth;
-        if (hurt > 0.6) {
-            ctx.fillStyle = `rgba(150,0,0,${(hurt - 0.6) * (0.28 + 0.1 * Math.sin(Date.now() * 0.006))})`;
-            ctx.fillRect(0, 0, 800, 600);
+    /** Is a world point lit for the player (inside the beam or the near circle, with line of sight)? */
+    function isLit(x, y) {
+        const p = gameState.player;
+        if (!p) return true;
+        const d = Math.hypot(x - p.x, y - p.y);
+        if (d > 340) return false;
+        if (d > PLAYER_NEAR_LIGHT) {
+            const a = Math.atan2(y - p.y, x - p.x);
+            if (angleDelta(a, p.angle) > PLAYER_VIEW_ANGLE / 2) return false;
         }
+        return lineOfSight(p.x, p.y, x, y);
     }
 
     function reset() {
@@ -683,5 +774,5 @@ const Art = (() => {
         layerKey = '';
     }
 
-    return { drawMap, soldier, bar, hostage, door, grenade, bullet, particle, muzzle, explosion, decal, drawFlashes, drawLight, reset };
+    return { drawMap, soldier, ring, body, smoke, bar, hostage, door, grenade, bullet, particle, muzzle, explosion, flashburst, decal, drawFlashes, drawLight, isLit, reset };
 })();

@@ -26,7 +26,7 @@ jobs:
             exit 0
           fi
           mkdir dist
-          cp index.html styles.css audio.js classes.js constants.js game-logic.js map-loader.js maps-community.js maps-official.js maps-pack.js pb-art.js pb-ui.js ui.js weapons.js dist/
+          cp index.html styles.css audio.js classes.js constants.js game-logic.js map-loader.js maps-community.js maps-official.js maps-pack.js pb-art.js pb-hud.js pb-ui.js ui.js weapons.js dist/
           cp -r editor maps dist/
           curl -sL -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
           unzip -o -q butler.zip && chmod +x butler

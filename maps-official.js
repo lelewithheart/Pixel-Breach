@@ -5,7 +5,7 @@ const MISSIONS = [
         description: 'Learn the basics of movement and combat in this beginner-friendly facility.',
         difficulty: 'easy',
         objectives: ['Neutralize all targets', 'Reach extraction point'],
-        tutorialSteps: ['Use WASD to move', 'Hold SHIFT to sprint', 'Press CTRL to crouch', 'Left click to shoot'],
+        tutorialSteps: ['WASD moves, SHIFT sprints, C crouches for steadier aim', 'Enemies hear your shots and come looking', 'Reload with R before a room, not inside it', 'The green EXIT opens once every hostile is down'],
         mapFile: 'maps/mission-01-training.json',
         // Inline map data for immediate use
         mapData: {
@@ -20,7 +20,7 @@ const MISSIONS = [
             spawn: { x: 2, y: 2 },
             entities: {
                 enemies: [
-                    { x: 8, y: 5, type: 'normal' },
+                    { x: 8, y: 12, type: 'normal' },
                     { x: 20, y: 12, type: 'normal' },
                     { x: 34, y: 5, type: 'normal' }
                 ],
@@ -35,7 +35,7 @@ const MISSIONS = [
         description: 'A terrorist cell has taken over a warehouse. Breach and neutralize all hostiles.',
         difficulty: 'medium',
         objectives: ['Neutralize all hostiles', 'Rescue 3 hostages', 'Reach extraction'],
-        tutorialSteps: ['Breach doors with E or shoot them', 'Use lockpick on locked doors', 'Rescue hostages with E'],
+        tutorialSteps: ['Open doors with E. Closed doors hide you from enemies', 'Locked doors: lockpick with E, use a door mine, or shoot them open', 'Rescue hostages with E. Stray bullets kill them'],
         mapFile: 'maps/mission-02-warehouse.json',
         mapData: {
             version: "1.0",
@@ -77,8 +77,8 @@ const MISSIONS = [
         name: 'Bank Heist Response',
         description: 'Armed robbers have taken over the downtown bank. Multiple hostages are held in different areas.',
         difficulty: 'hard',
-        objectives: ['Neutralize all hostiles', 'Rescue all 5 hostages', 'Secure the vault area', 'Reach extraction'],
-        tutorialSteps: ['Use flashbangs to stun groups', 'Heavy enemies require more damage', 'Check all rooms'],
+        objectives: ['Neutralize all hostiles', 'Rescue all 5 hostages', 'Reach extraction'],
+        tutorialSteps: ['Throw a flashbang into a room before you enter it', 'Heavy enemies take more hits, flank them', 'Hostages are spread over every floor'],
         mapFile: 'maps/mission-03-bank.json',
         mapData: {
             version: "1.0",
@@ -131,8 +131,8 @@ const MISSIONS = [
         name: 'Office Complex',
         description: 'Terrorists have seized a corporate office building. Multiple floors with interconnected rooms.',
         difficulty: 'medium',
-        objectives: ['Neutralize all hostiles', 'Rescue 4 hostages', 'Clear all rooms', 'Reach extraction'],
-        tutorialSteps: ['Watch for enemies behind cover', 'Grenades can breach walls', 'Use medkit if wounded'],
+        objectives: ['Neutralize all hostiles', 'Rescue 4 hostages', 'Reach extraction'],
+        tutorialSteps: ['Watch for enemies behind cover', 'A breaching charge opens a wall where there is no door', 'Bring a medkit if the last mission hurt'],
         mapData: {
             version: "1.0",
             metadata: {
@@ -174,10 +174,10 @@ const MISSIONS = [
     {
         id: 5,
         name: 'Embassy Siege',
-        description: 'A foreign embassy is under attack. VIP diplomats need immediate rescue. Time is critical.',
+        description: 'A foreign embassy is under attack. Staff are held on every floor and the attackers are well armed.',
         difficulty: 'hard',
-        objectives: ['Rescue VIP diplomat', 'Neutralize all hostiles', 'Protect all hostages', 'Extract within 5 minutes'],
-        tutorialSteps: ['VIP hostage is marked differently', 'Some doors require breach charges', 'Time pressure requires efficiency'],
+        objectives: ['Neutralize all hostiles', 'Rescue all hostages', 'Reach extraction'],
+        tutorialSteps: ['Three heavies guard the lower floor', 'Smoke blocks their view while you cross a room', 'Most doors are locked: bring door mines or pick fast'],
         mapData: {
             version: "1.0",
             metadata: {
@@ -207,7 +207,7 @@ const MISSIONS = [
                     { x: 28, y: 5 },
                     { x: 8, y: 13 },
                     { x: 28, y: 13 },
-                    { x: 18, y: 21 }, // VIP
+                    { x: 18, y: 21 },
                     { x: 22, y: 21 }
                 ],
                 doors: [
@@ -228,8 +228,8 @@ const MISSIONS = [
         name: 'Underground Bunker',
         description: 'An underground bunker complex with narrow corridors. Expect heavy resistance.',
         difficulty: 'hard',
-        objectives: ['Clear all bunker sections', 'Rescue any hostages found', 'Disable the communications hub', 'Reach extraction'],
-        tutorialSteps: ['Narrow corridors limit movement', 'Use smoke for concealment', 'Heavy enemies guard key areas'],
+        objectives: ['Neutralize all hostiles', 'Rescue all hostages', 'Reach extraction'],
+        tutorialSteps: ['Narrow corridors: lean around corners with Q and F', 'Use smoke for concealment', 'Heavy enemies guard the key rooms'],
         mapData: {
             version: "1.0",
             metadata: {

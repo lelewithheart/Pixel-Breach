@@ -1,3 +1,69 @@
+// Game entities. All timing uses gameState.now, the game clock that only runs while playing.
+
+// ── Shared world helpers ──
+
+function tileAt(gx, gy) {
+    if (gx < 0 || gy < 0 || gx >= GRID_WIDTH || gy >= GRID_HEIGHT) return 1;
+    return gameState.grid[gy][gx];
+}
+
+function isSolidTile(gx, gy) {
+    const t = tileAt(gx, gy);
+    return t === 1 || t === 3;
+}
+
+function doorAtTile(gx, gy) {
+    for (const d of gameState.doors) {
+        if (d.gx === gx && d.gy === gy) return d;
+    }
+    return null;
+}
+
+/** True when a body of the given size centred on (x, y) overlaps a wall, cover or closed door. */
+function blockedForBody(x, y, size) {
+    const half = size / 2;
+    const gx0 = Math.floor((x - half) / TILE_SIZE), gx1 = Math.floor((x + half - 0.01) / TILE_SIZE);
+    const gy0 = Math.floor((y - half) / TILE_SIZE), gy1 = Math.floor((y + half - 0.01) / TILE_SIZE);
+    for (let gy = gy0; gy <= gy1; gy++) {
+        for (let gx = gx0; gx <= gx1; gx++) {
+            if (isSolidTile(gx, gy)) return true;
+            const door = doorAtTile(gx, gy);
+            if (door && !door.open) return true;
+        }
+    }
+    return false;
+}
+
+/** Walls, closed doors and smoke block sight. */
+function lineOfSight(x1, y1, x2, y2, opts = {}) {
+    const dist = Math.hypot(x2 - x1, y2 - y1);
+    const steps = Math.max(1, Math.ceil(dist / 6));
+    const dx = (x2 - x1) / steps, dy = (y2 - y1) / steps;
+    let lastGx = -1, lastGy = -1;
+    for (let i = 1; i < steps; i++) {
+        const gx = Math.floor((x1 + dx * i) / TILE_SIZE), gy = Math.floor((y1 + dy * i) / TILE_SIZE);
+        if (gx === lastGx && gy === lastGy) continue;
+        lastGx = gx; lastGy = gy;
+        if (tileAt(gx, gy) === 1) return false;
+        if (opts.doors !== false) {
+            const door = doorAtTile(gx, gy);
+            if (door && !door.open) return false;
+        }
+    }
+    if (opts.smoke !== false) {
+        for (const s of gameState.smokes) {
+            if (s.blocks(x1, y1, x2, y2)) return false;
+        }
+    }
+    return true;
+}
+
+function angleDelta(a, b) {
+    return Math.abs(((a - b + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI);
+}
+
+// ── Player ──
+
 class Player {
     constructor(x, y) {
         this.x = x;
@@ -13,9 +79,9 @@ class Player {
         this.stamina = 100;
         this.maxStamina = 100;
         this.angle = 0;
-        this.stance = "standing"; //standing, crouched, prone
+        this.stance = "standing"; //standing, crouched
         this.lean = "none"; //none, left, right
-        this.currentWeapon = "primary"; //primary, secondary, (melee: TODO)
+        this.currentWeapon = "primary"; //primary, secondary
         this.weapons = {
             primary: this.createWeapon(gameState.loadout.primary),
             secondary: this.createWeapon(gameState.loadout.secondary)
@@ -26,119 +92,134 @@ class Player {
         this.maxHealth += bonusHealth;
         this.health += bonusHealth;
         this.equipment.quantity += gameState.unlocks.bonusEquipment || 0;
-        this.canFire = true;
+
+        // Timing (game clock)
+        this.nextShotAt = 0;
         this.reloading = false;
+        this.reloadStart = 0;
+        this.reloadEnd = 0;
+        this.swapping = false;
+        this.swapEnd = 0;
+        this.pendingWeapon = null;
+        this.bloom = 0;
+        this.sprinting = false;
+        this.sprintBlockedUntil = 0;
+        this.dryAt = -1e9;
+
+        // Feedback
+        this.hitAt = -1e9;
+        this.lastHitFrom = null;
+        this.damageMultiplier = 1;
+        this.damageTakenMultiplier = 1;
+        this.stats = { shots: 0, hits: 0, kills: 0, rescued: 0 };
         this.hostagesRescued = 0;
     }
 
     createWeapon(type) {
         const weapon = { ...WEAPONS[type] };
+        weapon.type = type;
         weapon.currentAmmo = weapon.magSize;
         weapon.reserveAmmo = weapon.totalAmmo;
         return weapon;
     }
 
+    get weapon() {
+        return this.weapons[this.currentWeapon];
+    }
+
+    /** Current spread in radians, including stance and bloom. */
+    spread() {
+        let s = this.weapon.spread;
+        if (this.sprinting) s *= SPREAD_SPRINT;
+        if (this.stance === "crouched") s *= SPREAD_CROUCH;
+        if (this.lean !== "none") s *= SPREAD_LEAN;
+        return s + this.bloom;
+    }
+
+    /** Runs every frame while playing. */
+    update(dt) {
+        const now = gameState.now;
+        if (!this.sprinting && this.stamina < this.maxStamina) {
+            this.stamina = Math.min(this.maxStamina, this.stamina + STAMINA_REGEN_PER_S * dt / 1000);
+        }
+        if (this.bloom > 0) {
+            this.bloom = Math.max(0, this.bloom - BLOOM_MAX * dt / BLOOM_RECOVER_MS);
+        }
+        if (this.reloading && now >= this.reloadEnd) {
+            const weapon = this.weapon;
+            const needed = weapon.magSize - weapon.currentAmmo;
+            const take = Math.min(needed, weapon.reserveAmmo);
+            weapon.currentAmmo += take;
+            weapon.reserveAmmo -= take;
+            this.reloading = false;
+            updateUI();
+        }
+        if (this.swapping && now >= this.swapEnd) {
+            this.swapping = false;
+            this.currentWeapon = this.pendingWeapon;
+            this.pendingWeapon = null;
+            updateUI();
+        }
+        this.sprinting = false;
+    }
+
     move(dx, dy) {
+        const now = gameState.now;
         let speed = this.speed;
         const isMoving = dx !== 0 || dy !== 0;
-        const isSprinting = keys['Shift'] && this.stamina > 0 && this.stance === "standing" && isMoving;
+        const wantsSprint = keys['Shift'] && this.stamina > 0 && this.stance === "standing" && isMoving && now >= this.sprintBlockedUntil;
 
-        if (isSprinting) {
+        if (wantsSprint) {
             speed = this.sprintSpeed;
-            this.stamina = Math.max(0, this.stamina - 0.8);
+            this.sprinting = true;
+            this.stamina = Math.max(0, this.stamina - STAMINA_DRAIN_PER_S * (gameState.dt || 16) / 1000);
         } else if (this.stance === "crouched") {
             speed = this.crouchSpeed;
-        }
-
-        // Regenerate stamina when not sprinting
-        if (!isSprinting && this.stamina < this.maxStamina) {
-            this.stamina = Math.min(this.maxStamina, this.stamina + 0.2);
         }
 
         const newX = this.x + dx * speed;
         const newY = this.y + dy * speed;
 
-        if (!this.checkCollision(newX, this.y)) {
-            this.x = newX;
-        }
-        if (!this.checkCollision(this.x, newY)) {
-            this.y = newY;
-        }
+        if (!blockedForBody(newX, this.y, this.size)) this.x = newX;
+        if (!blockedForBody(this.x, newY, this.size)) this.y = newY;
 
         this.x = Math.max(this.size, Math.min(GRID_WIDTH * TILE_SIZE - this.size, this.x));
         this.y = Math.max(this.size, Math.min(GRID_HEIGHT * TILE_SIZE - this.size, this.y));
     }
 
-    checkCollision(x, y) {
-        const gridX = Math.floor(x / TILE_SIZE);
-        const gridY = Math.floor(y / TILE_SIZE);
+    /** Called on every trigger pull (click) and every frame while holding with an automatic weapon. */
+    shoot(fromClick = false) {
+        const now = gameState.now;
+        if (this.reloading || this.swapping) return;
+        if (now < this.nextShotAt) return;
 
-        for (let dx = -1; dx <= 1; dx++) {
-            for (let dy = -1; dy <= 1; dy++) {
-                const checkX = gridX + dx;
-                const checkY = gridY + dy;
-                if (checkX >= 0 && checkX < GRID_WIDTH && checkY >= 0 && checkY < GRID_HEIGHT) {
-                    const tile = gameState.grid[checkY][checkX];
-                    if (tile === 1 || tile === 3) { //1: Wall, 3: Cover
-                        const tileLeft = checkX * TILE_SIZE;
-                        const tileTop = checkY * TILE_SIZE;
-                        const tileRight = tileLeft + TILE_SIZE;
-                        const tileBottom = tileTop + TILE_SIZE;
-
-                        if (x - this.size / 2 < tileRight && x + this.size / 2 > tileLeft && y - this.size / 2 < tileBottom && y + this.size / 2 > tileTop) {
-                            return true;
-                        }
-
-                    }
-                }
-            }
-        }
-
-        // Check collision with closed doors
-        for (let door of gameState.doors) {
-            if (!door.open) {
-                const doorGridX = Math.floor(door.x / TILE_SIZE);
-                const doorGridY = Math.floor(door.y / TILE_SIZE);
-                const tileLeft = doorGridX * TILE_SIZE;
-                const tileTop = doorGridY * TILE_SIZE;
-                const tileRight = tileLeft + TILE_SIZE;
-                const tileBottom = tileTop + TILE_SIZE;
-
-                if (x - this.size / 2 < tileRight && x + this.size / 2 > tileLeft && y - this.size / 2 < tileBottom && y + this.size / 2 > tileTop) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-
-    }
-
-    shoot() {
-        if (!this.canFire || this.reloading) return;
-
-        const weapon = this.weapons[this.currentWeapon];
+        const weapon = this.weapon;
         if (weapon.currentAmmo <= 0) {
+            if (fromClick && now - this.dryAt > 350) {
+                this.dryAt = now;
+                AudioSystem.playDryFire();
+                this.reload();
+            }
             return;
         }
 
         weapon.currentAmmo--;
-        this.canFire = false;
-        setTimeout(() => this.canFire = true, weapon.fireRate);
+        this.nextShotAt = now + weapon.fireRate;
+        this.sprintBlockedUntil = now + SPRINT_BLOCK_AFTER_SHOT_MS;
+        this.stats.shots++;
 
-        AudioSystem.playGunshot(gameState.loadout[this.currentWeapon]);
+        AudioSystem.playGunshot(weapon.type);
 
+        const spread = this.spread();
         const pellets = weapon.pellets || 1;
+        const damage = Math.round(weapon.damage * this.damageMultiplier);
         for (let i = 0; i < pellets; i++) {
-            const spread = (Math.random() - 0.5) * weapon.spread;
-            const bulletAngle = this.angle + spread;
-
-            gameState.bullets.push(new Bullet(
-                this.x, this.y, bulletAngle, weapon.damage, "player"
-            ));
+            const bulletAngle = this.angle + (Math.random() - 0.5) * spread;
+            gameState.bullets.push(new Bullet(this.x, this.y, bulletAngle, damage, "player"));
         }
+        this.bloom = Math.min(BLOOM_MAX, this.bloom + BLOOM_PER_SHOT * (weapon.kind === 'shotgun' ? 2 : 1));
+        if (weapon.kind === 'shotgun' || weapon.kind === 'sniper') HUD.shake(2.5, 120);
 
-        // Muzzle flash
         for (let i = 0; i < 3; i++) {
             gameState.particles.push(new Particle(
                 this.x + Math.cos(this.angle) * 20,
@@ -147,46 +228,50 @@ class Player {
             ));
         }
 
-        //Alert enemies (based on Noise Level)
+        // Noise: enemies in range start investigating.
         const noiseLevel = weapon.noiseLevel || DEFAULT_NOISE_LEVEL;
         gameState.enemies.forEach(enemy => {
-            const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
-            if (dist <= noiseLevel) {
-                enemy.state = "engage";
-                enemy.lastSeenPlayerX = this.x;
-                enemy.lastSeenPlayerY = this.y;
-            }
+            if (Math.hypot(enemy.x - this.x, enemy.y - this.y) <= noiseLevel) enemy.hear(this.x, this.y);
         });
 
         updateUI();
     }
 
     reload() {
-        if (this.reloading) return;
-
-        const weapon = this.weapons[this.currentWeapon];
+        if (this.reloading || this.swapping) return;
+        const weapon = this.weapon;
         if (weapon.currentAmmo === weapon.magSize || weapon.reserveAmmo === 0) return;
 
         this.reloading = true;
+        this.reloadStart = gameState.now;
+        this.reloadEnd = gameState.now + (weapon.reloadTime || RELOAD_TIME_MS);
         AudioSystem.playReload();
-        setTimeout(() => {
-            const ammoNeeded = weapon.magSize - weapon.currentAmmo;
-            const ammoToReload = Math.min(ammoNeeded, weapon.reserveAmmo);
-            weapon.currentAmmo += ammoToReload;
-            weapon.reserveAmmo -= ammoToReload;
-            this.reloading = false;
-            updateUI();
-        }, RELOAD_TIME_MS);
+        updateUI();
     }
 
-    takeDamage(damage) {
+    switchWeapon(slot) {
+        if (slot === this.currentWeapon || this.swapping) return;
+        if (!this.weapons[slot]) return;
+        this.reloading = false;
+        this.swapping = true;
+        this.pendingWeapon = slot;
+        this.swapEnd = gameState.now + (this.weapons[slot].swapTime || 400);
+        AudioSystem.playSwap();
+    }
+
+    takeDamage(damage, from = null) {
+        damage *= this.damageTakenMultiplier;
         if (this.armor > 0) {
             const armorAbsorb = Math.min(this.armor, damage * ARMOR_ABSORPTION_RATE);
             this.armor -= armorAbsorb;
             damage -= armorAbsorb;
         }
         this.health -= damage;
-        AudioSystem.playHit();
+        this.hitAt = gameState.now;
+        this.lastHitFrom = from;
+        AudioSystem.playHit(true);
+        HUD.damage(from);
+        HUD.shake(3, 150);
 
         if (this.health <= 0) {
             this.health = 0;
@@ -196,287 +281,350 @@ class Player {
     }
 
     useEquipment() {
-        if (this.equipment.quantity <= 0) return;
-
-        this.equipment.quantity--;
+        if (this.equipment.quantity <= 0) {
+            HUD.notice('No ' + this.equipment.name.toLowerCase() + ' left');
+            return;
+        }
 
         switch (this.equipment.effect) {
             case "stun":
-                //Flashbang, make near enemies run around
-                AudioSystem.playFlashbang();
-                gameState.enemies.forEach(enemy => {
-                    const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
-                    if (dist < 150) {
-                        enemy.stunned = true;
-                        setTimeout(() => enemy.stunned = false, FLASHBANG_STUN_DURATION_MS);
-                    }
-                });
-                //Particles
-                for (let i = 0; i < 20; i++) {
-                    gameState.particles.push(new Particle(
-                        this.x + (Math.random() - 0.5) * 50,
-                        this.y + (Math.random() - 0.5) * 50,
-                        "#fff", 500
-                    ));
-                }
-                break;
+            case "smoke":
             case "grenade":
+                this.equipment.quantity--;
                 AudioSystem.playBeep(300, 0.05, 'square');
-                gameState.grenades.push(new Grenade(this.x, this.y, this.angle));
+                gameState.grenades.push(new Grenade(this.x, this.y, this.angle, "player", this.equipment.effect));
                 break;
-            case "doormine":
-                //Place mine on nearest door
-                let nearestDoor = null;
-                let nearestDist = 60;
-                gameState.doors.forEach(door => {
-                    const dist = Math.hypot(door.x - this.x, door.y - this.y);
-                    if (dist < nearestDist) {
-                        nearestDist = dist;
-                        nearestDoor = door;
-                    }
-                });
-                if (nearestDoor && nearestDoor.locked) {
-                    nearestDoor.unlock();
+            case "doormine": {
+                const door = this.nearestDoor(60);
+                if (door && door.locked) {
+                    this.equipment.quantity--;
+                    door.unlock();
+                    door.open = true;
                     AudioSystem.playBreach();
-                    //SFX
+                    Art.explosion(door.x, door.y, 30);
+                    HUD.shake(4, 200);
                     for (let i = 0; i < 15; i++) {
                         gameState.particles.push(new Particle(
-                            nearestDoor.x + (Math.random() - 0.5) * 30,
-                            nearestDoor.y + (Math.random() - 0.5) * 30,
+                            door.x + (Math.random() - 0.5) * 30,
+                            door.y + (Math.random() - 0.5) * 30,
                             "#f80", 300
                         ));
                     }
                 } else {
-                    this.equipment.quantity++; //Refund if no door found
+                    HUD.notice('Stand next to a locked door');
                 }
                 break;
-            case "breach":
-                //Breach wall/door in front of player
-                AudioSystem.playBreach();
-                const checkX = Math.floor((this.x + Math.cos(this.angle) * 40) / TILE_SIZE);
-                const checkY = Math.floor((this.y + Math.sin(this.angle) * 40) / TILE_SIZE);
-                if (checkX >= 0 && checkX < GRID_WIDTH && checkY >= 0 && checkY < GRID_HEIGHT) {
+            }
+            case "breach": {
+                const checkX = Math.floor((this.x + Math.cos(this.angle) * 30) / TILE_SIZE);
+                const checkY = Math.floor((this.y + Math.sin(this.angle) * 30) / TILE_SIZE);
+                const t = tileAt(checkX, checkY);
+                const onBorder = checkX <= 0 || checkY <= 0 || checkX >= GRID_WIDTH - 1 || checkY >= GRID_HEIGHT - 1;
+                if ((t === 1 || t === 3) && !onBorder) {
+                    this.equipment.quantity--;
                     gameState.grid[checkY][checkX] = 0;
+                    AudioSystem.playBreach();
+                    Art.explosion(checkX * TILE_SIZE + TILE_SIZE / 2, checkY * TILE_SIZE + TILE_SIZE / 2, 40);
+                    HUD.shake(6, 250);
+                    gameState.enemies.forEach(e => e.hear(this.x, this.y));
+                } else {
+                    HUD.notice('Face a wall to breach it');
                 }
                 break;
+            }
             case "heal":
+                if (this.health >= this.maxHealth) {
+                    HUD.notice('Health is full');
+                    break;
+                }
+                this.equipment.quantity--;
                 AudioSystem.playPickup();
                 this.health = Math.min(this.maxHealth, this.health + 50);
+                HUD.notice('+50 health');
                 break;
         }
         updateUI();
     }
 
-    interact() {
-        //Check for nearby hostage
-        gameState.civilians.forEach(civilian => {
-            const dist = Math.hypot(civilian.x - this.x, civilian.y - this.y);
-            if (dist < 40 && !civilian.rescued) {
-                civilian.rescued = true;
-                this.hostagesRescued++;
-                AudioSystem.playRescue();
-                checkObjectives();
-            }
-        });
-
-        //Check for nearby doors
+    nearestDoor(range) {
+        let best = null, bestDist = range;
         gameState.doors.forEach(door => {
             const dist = Math.hypot(door.x - this.x, door.y - this.y);
-            if (dist < 40) {
-                if (door.locked) {
-                    gameState.screen = "lockpick";
-                    gameState.lockpickTarget = door;
-                    gameState.playing = false;
-                    document.getElementById('lockpick-screen').classList.add('active');
-
-                } else {
-                    door.toggle();
-                    AudioSystem.playDoor(door.open);
-                }
-            }
+            if (dist < bestDist) { bestDist = dist; best = door; }
         });
+        return best;
+    }
+
+    /** What E would do right now. Used by the HUD prompt and by interact(). */
+    interactTarget() {
+        let best = null, bestDist = 40;
+        gameState.civilians.forEach(c => {
+            if (c.rescued || c.dead) return;
+            const dist = Math.hypot(c.x - this.x, c.y - this.y);
+            if (dist < bestDist) { bestDist = dist; best = { kind: 'hostage', obj: c, label: 'RESCUE' }; }
+        });
+        const door = this.nearestDoor(bestDist);
+        if (door) {
+            best = { kind: door.locked ? 'lockpick' : 'door', obj: door, label: door.locked ? 'LOCKPICK' : (door.open ? 'CLOSE' : 'OPEN') };
+        }
+        return best;
+    }
+
+    interact() {
+        const target = this.interactTarget();
+        if (!target) return;
+        if (target.kind === 'hostage') {
+            target.obj.rescued = true;
+            target.obj.scared = false;
+            this.hostagesRescued++;
+            this.stats.rescued++;
+            AudioSystem.playRescue();
+            const total = gameState.civilians.length;
+            HUD.banner('HOSTAGE RESCUED', `${gameState.civilians.filter(c => c.rescued).length} / ${total}`);
+            checkObjectives();
+        } else if (target.kind === 'lockpick') {
+            gameState.screen = "lockpick";
+            gameState.lockpickTarget = target.obj;
+            gameState.playing = false;
+            document.getElementById('lockpick-screen').classList.add('active');
+        } else {
+            target.obj.toggle();
+            AudioSystem.playDoor(target.obj.open);
+        }
     }
 
     draw(ctx) {
         Art.soldier(ctx, this, 'player');
-        if (this.health < this.maxHealth) {
-            Art.bar(ctx, this.x, this.y - 20, this.health / this.maxHealth, '#5dff9f');
+        if (this.reloading) {
+            const p = (gameState.now - this.reloadStart) / Math.max(1, this.reloadEnd - this.reloadStart);
+            Art.ring(ctx, this.x, this.y, 15, p, '#ffc857');
+        } else if (this.swapping) {
+            Art.ring(ctx, this.x, this.y, 15, 1 - (this.swapEnd - gameState.now) / Math.max(1, this.weapons[this.pendingWeapon].swapTime || 400), '#55e6ff');
         }
     }
 }
+
+// ── Enemy ──
 
 class Enemy {
     constructor(x, y, type = "normal") {
         this.x = x;
         this.y = y;
         this.size = 16;
-        this.speed = type === "heavy" ? 1.2 : 1.0; // Increased speed to make them more challenging
-        this.health = type === "heavy" ? 150 : 100; // Increased health to match player
-        this.maxHealth = this.health;
         this.type = type;
-        this.angle = 0;
-        this.state = "patrol"; //patrol, alert, engage, stunned
-        this.patrolPoints = []; //example: {x: x1, y: y1}
+        this.speed = type === "heavy" ? 1.2 : 1.0;
+        this.health = type === "heavy" ? 150 : 100;
+        this.maxHealth = this.health;
+        this.angle = Math.random() * Math.PI * 2;
+        this.state = "patrol"; //patrol, suspect, engage
+        this.patrolPoints = [];
         this.currentPatrolPoint = 0;
-        this.detectionRange = 180; // Increased detection range
-        this.fireRange = 220; // Increased fire range
-        this.canFire = true;
-        this.stunned = false;
-        this.lastSeenPlayerX = null;
-        this.lastSeenPlayerY = null;
+        this.detectionRange = 180;
+        this.fireRange = 220;
         this.optimalRange = type === "heavy" ? 100 : 150;
+
+        // Timing
+        this.spottedAt = 0;
+        this.lastSeen = null;
+        this.lastSeenAt = 0;
+        this.suspectTarget = null;
+        this.suspectUntil = 0;
+        this.nextShotAt = 0;
+        this.burstLeft = ENEMY_BURST_MIN;
+        this.burstPauseUntil = 0;
         this.reloading = false;
+        this.reloadEnd = 0;
+        this.stunnedUntil = 0;
+        this.stunStopUntil = 0;
+        this.wanderUntil = 0;
+        this.path = [];
+        this.pathAt = -1e9;
+        this.pathTarget = null;
+        this.seenAt = -1e9; // last time the player had this enemy in view
+        this.hitAt = -1e9;
 
-        // Random weapon loadout based on enemy type
-        const primaryWeapons = type === "heavy"
-            ? ["m4a1", "shotgun"]
-            : ["mp5", "m4a1", "glock"];
+        const primaryWeapons = type === "heavy" ? ["m4a1", "shotgun"] : ["mp5", "m4a1", "glock"];
         const secondaryWeapons = ["m1911", "glock"];
-
-        const randomPrimary = primaryWeapons[Math.floor(Math.random() * primaryWeapons.length)];
-        const randomSecondary = secondaryWeapons[Math.floor(Math.random() * secondaryWeapons.length)];
-
         this.weapons = {
-            primary: this.createWeapon(randomPrimary),
-            secondary: this.createWeapon(randomSecondary)
+            primary: this.createWeapon(primaryWeapons[Math.floor(Math.random() * primaryWeapons.length)]),
+            secondary: this.createWeapon(secondaryWeapons[Math.floor(Math.random() * secondaryWeapons.length)])
         };
         this.currentWeapon = "primary";
+        this.damageMultiplier = ENEMY_DAMAGE_SCALE[type] || 1;
+    }
 
-        // Enemies now deal full weapon damage (no multiplier reduction)
-        this.damageMultiplier = 1.0; // Full damage like player
+    get stunned() {
+        return gameState.now < this.stunnedUntil;
     }
 
     createWeapon(type) {
         const weapon = { ...WEAPONS[type] };
-        weapon.type = type; // Store weapon type for audio
+        weapon.type = type;
         weapon.currentAmmo = weapon.magSize;
         weapon.reserveAmmo = weapon.totalAmmo;
         return weapon;
     }
 
     update() {
+        const now = gameState.now;
+        const player = gameState.player;
+
+        if (this.reloading && now >= this.reloadEnd) {
+            const weapon = this.weapons[this.currentWeapon];
+            const take = Math.min(weapon.magSize - weapon.currentAmmo, weapon.reserveAmmo);
+            weapon.currentAmmo += take;
+            weapon.reserveAmmo -= take;
+            this.reloading = false;
+        }
+
         if (this.stunned) {
-            //Run around like a maniac when stunned lol
-            if (Math.random() < 0.1) {
+            if (now < this.stunStopUntil) return;
+            // Run around blindly.
+            if (now > this.wanderUntil) {
                 this.angle = Math.random() * Math.PI * 2;
+                this.wanderUntil = now + 200 + Math.random() * 400;
             }
-            const dx = Math.cos(this.angle) * this.speed * 1.5;
-            const dy = Math.sin(this.angle) * this.speed * 1.5;
-            if (!this.checkCollision(this.x + dx, this.y + dy)) {
-                this.x += dx;
-                this.y += dy;
-            }
+            this.tryMove(Math.cos(this.angle) * this.speed * 1.5, Math.sin(this.angle) * this.speed * 1.5);
             return;
         }
 
-        const player = gameState.player;
         const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
-
-        //Check if enemy can see player (cone)
         const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
-        const angleDiff = Math.abs(((angleToPlayer - this.angle + Math.PI) % (Math.PI * 2)) - Math.PI);
-        const inViewCone = angleDiff < ENEMY_VIEW_ANGLE / 2;
-        const canSeePlayer = inViewCone && distToPlayer < ENEMY_VIEW_DISTANCE && this.hasLineOfSight(player.x, player.y);
+        const inViewCone = angleDelta(angleToPlayer, this.angle) < ENEMY_VIEW_ANGLE / 2;
+        const canSeePlayer = distToPlayer < ENEMY_VIEW_DISTANCE && (inViewCone || distToPlayer < 40)
+            && lineOfSight(this.x, this.y, player.x, player.y);
 
-        //Engaging & Disgaging logic
-        if (canSeePlayer && distToPlayer < this.detectionRange) {
-            this.state = "engage";
-            this.lastSeenPlayerX = player.x;
-            this.lastSeenPlayerY = player.y;
-        } else if (this.state === "engage" && this.lastSeenPlayerX) {
-            const distToLastPos = Math.hypot(this.lastSeenPlayerX - this.x, this.lastSeenPlayerY - this.y);
-            if (distToLastPos < 20) {
-                this.lastSeenPlayerX = null;
-                this.lastSeenPlayerY = null;
+        if (canSeePlayer) {
+            if (this.state !== "engage") {
+                this.state = "engage";
+                this.spottedAt = now;
+                AudioSystem.playAlert();
+            }
+            this.lastSeen = { x: player.x, y: player.y };
+            this.lastSeenAt = now;
+            this.engage(player, distToPlayer, true);
+        } else if (this.state === "engage") {
+            // Chase the last known position.
+            if (this.lastSeen && now - this.lastSeenAt < ENEMY_MEMORY_MS) {
+                const reached = this.moveTo(this.lastSeen, 1, true);
+                if (reached) { this.lastSeen = null; this.state = "patrol"; }
+            } else {
+                this.lastSeen = null;
                 this.state = "patrol";
             }
-        }
-
-        switch (this.state) {
-            case "engage":
-                this.engage(player);
-                break;
-            case "patrol":
-                this.patrol();
-                break;
+        } else if (this.state === "suspect") {
+            if (now > this.suspectUntil || !this.suspectTarget) {
+                this.state = "patrol";
+            } else {
+                const reached = this.moveTo(this.suspectTarget, 0.7, true);
+                if (reached) {
+                    // Look around for a moment, then go back to patrolling.
+                    if (now > this.wanderUntil) { this.angle += 0.9; this.wanderUntil = now + 500; }
+                    this.suspectUntil = Math.min(this.suspectUntil, now + 1200);
+                }
+            }
+        } else {
+            this.patrol();
         }
     }
 
-    engage(player) {
-        //look to player
+    /** A gunshot or explosion nearby. */
+    hear(x, y) {
+        if (this.state === "engage" || this.stunned) return;
+        this.state = "suspect";
+        this.suspectTarget = { x, y };
+        this.suspectUntil = gameState.now + ENEMY_SUSPECT_MS;
+        this.angle = Math.atan2(y - this.y, x - this.x);
+    }
+
+    engage(player, distToPlayer, canSee) {
+        const now = gameState.now;
+        if (distToPlayer > this.optimalRange + 30) {
+            this.moveTo({ x: player.x, y: player.y }, 1, false);
+        } else if (distToPlayer < this.optimalRange - 30) {
+            const a = Math.atan2(player.y - this.y, player.x - this.x);
+            this.tryMove(-Math.cos(a) * this.speed, -Math.sin(a) * this.speed);
+        }
         this.angle = Math.atan2(player.y - this.y, player.x - this.x);
 
-        const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
-
-        //move to optimal distance
-        if (distToPlayer > this.optimalRange + 30) {
-            // Too far - move closer
-            const dx = Math.cos(this.angle) * this.speed;
-            const dy = Math.sin(this.angle) * this.speed;
-            if (!this.checkCollision(this.x + dx, this.y + dy)) {
-                this.x += dx;
-                this.y += dy;
-            }
-        } else if (distToPlayer < this.optimalRange - 30) {
-            // Too close - back away
-            const dx = -Math.cos(this.angle) * this.speed;
-            const dy = -Math.sin(this.angle) * this.speed;
-            if (!this.checkCollision(this.x + dx, this.y + dy)) {
-                this.x += dx;
-                this.y += dy;
-            }
-        }
-
-        if (this.canFire && distToPlayer < this.fireRange && this.hasLineOfSight(player.x, player.y)) {
+        if (canSee && now >= this.spottedAt + ENEMY_REACTION_MS && distToPlayer < this.fireRange) {
             this.shoot();
         }
     }
 
     patrol() {
+        const now = gameState.now;
         if (this.patrolPoints.length === 0) {
-            //Random Movement
-            if (Math.random() < 0.02) {
+            if (now > this.wanderUntil) {
                 this.angle = Math.random() * Math.PI * 2;
+                this.wanderUntil = now + 1500 + Math.random() * 2500;
             }
             const dx = Math.cos(this.angle) * this.speed * 0.5;
             const dy = Math.sin(this.angle) * this.speed * 0.5;
-            if (!this.checkCollision(this.x + dx, this.y + dy)) {
+            if (blockedForBody(this.x + dx, this.y + dy, this.size)) {
+                this.angle = Math.random() * Math.PI * 2;
+            } else {
                 this.x += dx;
                 this.y += dy;
             }
         } else {
-            // Follow patrol points
             const currentPoint = this.patrolPoints[this.currentPatrolPoint];
-            const targetX = currentPoint.x * TILE_SIZE + TILE_SIZE / 2;
-            const targetY = currentPoint.y * TILE_SIZE + TILE_SIZE / 2;
-
-            const distToPoint = Math.hypot(targetX - this.x, targetY - this.y);
-
-            if (distToPoint < 10) {
-                // Reached current patrol point, move to next
+            const target = { x: currentPoint.x * TILE_SIZE + TILE_SIZE / 2, y: currentPoint.y * TILE_SIZE + TILE_SIZE / 2 };
+            if (this.moveTo(target, 1, true)) {
                 this.currentPatrolPoint = (this.currentPatrolPoint + 1) % this.patrolPoints.length;
-            } else {
-                // Move directly towards current patrol point
-                this.angle = Math.atan2(targetY - this.y, targetX - this.x);
-
-                const dx = Math.cos(this.angle) * this.speed;
-                const dy = Math.sin(this.angle) * this.speed;
-                if (!this.checkCollision(this.x + dx, this.y + dy)) {
-                    this.x += dx;
-                    this.y += dy;
-                }
             }
         }
     }
 
+    /** Walks along a path toward target. Returns true once it is there. */
+    moveTo(target, speedScale = 1, face = true) {
+        const now = gameState.now;
+        if (Math.hypot(target.x - this.x, target.y - this.y) < 12) return true;
+
+        const stale = !this.pathTarget || Math.hypot(this.pathTarget.x - target.x, this.pathTarget.y - target.y) > 30;
+        if (stale || now - this.pathAt > ENEMY_PATH_INTERVAL_MS || this.path.length === 0) {
+            this.path = this.findPath(target.x, target.y);
+            this.pathAt = now;
+            this.pathTarget = { x: target.x, y: target.y };
+        }
+        while (this.path.length > 1 && Math.hypot(this.path[0].x - this.x, this.path[0].y - this.y) < 6) {
+            this.path.shift();
+        }
+        const wp = this.path[0] || target;
+        const a = Math.atan2(wp.y - this.y, wp.x - this.x);
+        if (face) this.angle = a;
+        this.tryMove(Math.cos(a) * this.speed * speedScale, Math.sin(a) * this.speed * speedScale);
+        return false;
+    }
+
+    /** Moves axis by axis and opens unlocked doors in the way. */
+    tryMove(dx, dy) {
+        const nx = this.x + dx, ny = this.y + dy;
+        const half = this.size / 2;
+        for (const door of gameState.doors) {
+            if (door.open || door.locked) continue;
+            if (Math.abs(door.x - nx) < half + TILE_SIZE / 2 + 2 && Math.abs(door.y - ny) < half + TILE_SIZE / 2 + 2) {
+                door.open = true;
+                AudioSystem.playDoor(true);
+            }
+        }
+        if (!blockedForBody(nx, this.y, this.size)) this.x = nx;
+        if (!blockedForBody(this.x, ny, this.size)) this.y = ny;
+    }
+
     findPath(targetX, targetY) {
-        // Convert world coordinates to grid coordinates
         const startGridX = Math.floor(this.x / TILE_SIZE);
         const startGridY = Math.floor(this.y / TILE_SIZE);
         const targetGridX = Math.floor(targetX / TILE_SIZE);
         const targetGridY = Math.floor(targetY / TILE_SIZE);
 
-        // A* pathfinding
+        const passable = (x, y) => {
+            if (x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT) return false;
+            if (isSolidTile(x, y)) return false;
+            const door = doorAtTile(x, y);
+            return !(door && door.locked && !door.open);
+        };
+
         const openSet = [];
         const closedSet = new Set();
         const cameFrom = new Map();
@@ -490,8 +638,8 @@ class Enemy {
         gScore.set(startKey, 0);
         fScore.set(startKey, this.heuristic(startGridX, startGridY, targetGridX, targetGridY));
 
-        while (openSet.length > 0) {
-            // Find node with lowest fScore
+        let expanded = 0;
+        while (openSet.length > 0 && expanded < 1500) {
             let current = openSet[0];
             let currentIndex = 0;
             for (let i = 1; i < openSet.length; i++) {
@@ -502,14 +650,13 @@ class Enemy {
             }
 
             if (current.key === targetKey) {
-                // Reconstruct path
                 return this.reconstructPath(cameFrom, current, targetX, targetY);
             }
 
             openSet.splice(currentIndex, 1);
             closedSet.add(current.key);
+            expanded++;
 
-            // Check neighbors (4-directional movement)
             const neighbors = [
                 { x: current.x + 1, y: current.y },
                 { x: current.x - 1, y: current.y },
@@ -519,15 +666,10 @@ class Enemy {
 
             for (const neighbor of neighbors) {
                 const neighborKey = `${neighbor.x},${neighbor.y}`;
-
                 if (closedSet.has(neighborKey)) continue;
-
-                // Check if neighbor is valid (not a wall and within bounds)
-                if (neighbor.x < 0 || neighbor.x >= GRID_WIDTH || neighbor.y < 0 || neighbor.y >= GRID_HEIGHT) continue;
-                if (gameState.grid[neighbor.y][neighbor.x] === 1 || gameState.grid[neighbor.y][neighbor.x] === 3) continue;
+                if (!passable(neighbor.x, neighbor.y)) continue;
 
                 const tentativeGScore = gScore.get(current.key) + 1;
-
                 if (!openSet.find(n => n.key === neighborKey)) {
                     openSet.push({ x: neighbor.x, y: neighbor.y, key: neighborKey });
                 } else if (tentativeGScore >= (gScore.get(neighborKey) || Infinity)) {
@@ -540,72 +682,58 @@ class Enemy {
             }
         }
 
-        // No path found, return direct path to target
+        // No path found: walk straight and hope.
         return [{ x: targetX, y: targetY }];
     }
 
     heuristic(x1, y1, x2, y2) {
-        // Manhattan distance
         return Math.abs(x1 - x2) + Math.abs(y1 - y2);
     }
 
     reconstructPath(cameFrom, current, targetX, targetY) {
         const path = [];
         let currentKey = current.key;
-
+        let node = current;
         while (cameFrom.has(currentKey)) {
-            const node = cameFrom.get(currentKey);
-            // Convert grid coordinates back to world coordinates (center of tile)
-            const worldX = node.x * TILE_SIZE + TILE_SIZE / 2;
-            const worldY = node.y * TILE_SIZE + TILE_SIZE / 2;
-            path.unshift({ x: worldX, y: worldY });
+            path.unshift({ x: node.x * TILE_SIZE + TILE_SIZE / 2, y: node.y * TILE_SIZE + TILE_SIZE / 2 });
+            node = cameFrom.get(currentKey);
             currentKey = node.key;
         }
-
-        // Add final target
         path.push({ x: targetX, y: targetY });
         return path;
     }
 
     shoot() {
-        if (!this.canFire || this.reloading) return;
+        const now = gameState.now;
+        if (this.reloading || now < this.nextShotAt || now < this.burstPauseUntil) return;
 
         const weapon = this.weapons[this.currentWeapon];
-
-        // Check ammo and reload if needed
         if (weapon.currentAmmo <= 0) {
             if (weapon.reserveAmmo <= 0 && this.currentWeapon === "primary") {
-                // Switch to secondary if primary is empty
                 this.currentWeapon = "secondary";
                 return;
             } else if (weapon.reserveAmmo <= 0) {
-                // Both weapons empty, can't shoot
                 return;
             }
             this.reload();
-            return; // Don't shoot while starting reload
+            return;
         }
 
         weapon.currentAmmo--;
-        this.canFire = false;
-        setTimeout(() => this.canFire = true, weapon.fireRate * 0.8); // Enemies shoot 20% faster
-
-        // Calculate damage based on weapon and enemy multiplier
-        const damage = Math.floor(weapon.damage * this.damageMultiplier);
-
-        const pellets = weapon.pellets || 1;
-        for (let i = 0; i < pellets; i++) {
-            const spread = (Math.random() - 0.5) * weapon.spread * 1.5; // Slightly less accurate than player but still challenging
-            const bulletAngle = this.angle + spread;
-
-            gameState.bullets.push(new Bullet(
-                this.x, this.y, bulletAngle, damage, "enemy"
-            ));
+        this.nextShotAt = now + weapon.fireRate * ENEMY_FIRE_RATE_SCALE;
+        if (--this.burstLeft <= 0) {
+            this.burstLeft = ENEMY_BURST_MIN + Math.floor(Math.random() * (ENEMY_BURST_MAX - ENEMY_BURST_MIN + 1));
+            this.burstPauseUntil = now + ENEMY_BURST_PAUSE_MS[0] + Math.random() * (ENEMY_BURST_PAUSE_MS[1] - ENEMY_BURST_PAUSE_MS[0]);
         }
 
-        // Play weapon-appropriate sound
-        AudioSystem.playGunshot(weapon.type);
+        const damage = Math.max(1, Math.floor(weapon.damage * this.damageMultiplier));
+        const pellets = weapon.pellets || 1;
+        for (let i = 0; i < pellets; i++) {
+            const bulletAngle = this.angle + (Math.random() - 0.5) * weapon.spread * ENEMY_SPREAD_SCALE;
+            gameState.bullets.push(new Bullet(this.x, this.y, bulletAngle, damage, "enemy"));
+        }
 
+        AudioSystem.playGunshot(weapon.type);
         for (let i = 0; i < 3; i++) {
             gameState.particles.push(new Particle(
                 this.x + Math.cos(this.angle) * 20,
@@ -617,53 +745,38 @@ class Enemy {
 
     reload() {
         if (this.reloading) return;
-
         const weapon = this.weapons[this.currentWeapon];
         if (weapon.currentAmmo === weapon.magSize || weapon.reserveAmmo === 0) return;
-
         this.reloading = true;
-        // Enemies reload slightly slower than players
-        const reloadTime = RELOAD_TIME_MS * 1.3;
-        setTimeout(() => {
-            const ammoNeeded = weapon.magSize - weapon.currentAmmo;
-            const ammoToReload = Math.min(ammoNeeded, weapon.reserveAmmo);
-            weapon.currentAmmo += ammoToReload;
-            weapon.reserveAmmo -= ammoToReload;
-            this.reloading = false;
-        }, reloadTime);
+        this.reloadEnd = gameState.now + (weapon.reloadTime || RELOAD_TIME_MS) * ENEMY_RELOAD_SCALE;
+    }
+
+    stun() {
+        const now = gameState.now;
+        this.stunnedUntil = now + FLASHBANG_STUN_DURATION_MS;
+        this.stunStopUntil = now + FLASHBANG_FREEZE_MS;
+        this.lastSeen = null;
+        this.state = "patrol";
     }
 
     hasLineOfSight(targetX, targetY) {
-        const steps = 20;
-        const dx = (targetX - this.x) / steps;
-        const dy = (targetY - this.y) / steps;
-
-        for (let i = 0; i < steps; i++) {
-            const checkX = Math.floor((this.x + dx * i) / TILE_SIZE);
-            const checkY = Math.floor((this.y + dy * i) / TILE_SIZE);
-
-            if (checkX >= 0 && checkX < GRID_WIDTH && checkY >= 0 && checkY < GRID_HEIGHT) {
-                if (gameState.grid[checkY][checkX] === 1) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    checkCollision(x, y) {
-        const gridX = Math.floor(x / TILE_SIZE);
-        const gridY = Math.floor(y / TILE_SIZE);
-
-        if (gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT) {
-            return gameState.grid[gridY][gridX] === 1 || gameState.grid[gridY][gridX] === 3;
-        }
-        return true;
+        return lineOfSight(this.x, this.y, targetX, targetY);
     }
 
     takeDamage(damage) {
         this.health -= damage;
+        this.hitAt = gameState.now;
         AudioSystem.playHit(false);
+        AudioSystem.playHitmarker();
+        HUD.hit(this.x, this.y - 14, damage, this.health <= 0);
+        if (this.health > 0 && this.state !== "engage" && !this.stunned) {
+            // Getting shot tells you where the shooter is.
+            const player = gameState.player;
+            this.state = "engage";
+            this.spottedAt = gameState.now;
+            this.lastSeen = { x: player.x, y: player.y };
+            this.lastSeenAt = gameState.now;
+        }
         if (this.health <= 0) {
             this.die();
         }
@@ -677,6 +790,8 @@ class Enemy {
 
         AudioSystem.playEnemyDeath();
         Art.decal(this.x, this.y, 'blood');
+        Art.body(this.x, this.y, this.angle, this.type);
+        if (gameState.player) gameState.player.stats.kills++;
 
         for (let i = 0; i < 10; i++) {
             gameState.particles.push(new Particle(
@@ -690,22 +805,13 @@ class Enemy {
     }
 
     draw(ctx) {
-        Art.soldier(ctx, this, this.type === 'heavy' ? 'heavy' : 'normal');
+        const now = gameState.now;
+        Art.soldier(ctx, this, this.type === 'heavy' ? 'heavy' : 'normal', { flash: now - this.hitAt < 90 });
 
         if (this.health < this.maxHealth) {
             Art.bar(ctx, this.x, this.y - 20, this.health / this.maxHealth, '#ff5a4a');
         }
 
-        // Spotted you
-        if (this.state === 'engage') {
-            ctx.fillStyle = '#ffd25a';
-            ctx.font = 'bold 13px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText('!', this.x, this.y - 23);
-            ctx.textAlign = 'left';
-        }
-
-        // Stunned
         if (this.stunned) {
             const t = Date.now() * 0.008;
             ctx.fillStyle = '#ffe680';
@@ -715,9 +821,24 @@ class Enemy {
                 ctx.arc(this.x + Math.cos(a) * 11, this.y - 13 + Math.sin(a) * 3, 1.6, 0, Math.PI * 2);
                 ctx.fill();
             }
+        } else if (this.state === 'engage') {
+            const fresh = now - this.spottedAt < 900;
+            ctx.fillStyle = '#ff5a4a';
+            ctx.font = `bold ${fresh ? 15 : 12}px monospace`;
+            ctx.textAlign = 'center';
+            ctx.fillText('!', this.x, this.y - 23);
+            ctx.textAlign = 'left';
+        } else if (this.state === 'suspect') {
+            ctx.fillStyle = '#ffd25a';
+            ctx.font = 'bold 12px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('?', this.x, this.y - 23);
+            ctx.textAlign = 'left';
         }
     }
 }
+
+// ── Civilian ──
 
 class Civilian {
     constructor(x, y) {
@@ -731,20 +852,22 @@ class Civilian {
     }
 
     update() {
-        if (!this.rescued && !this.dead) {
-            gameState.enemies.forEach(enemy => {
-                const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
-                if (dist < 100) {
-                    const angle = Math.atan2(this.y - enemy.y, this.x - enemy.x);
-                    this.x += Math.cos(angle);
-                    this.y += Math.sin(angle);
-                    this.scared = true;
-                }
-            });
-        }
+        if (this.rescued || this.dead) return;
+        this.scared = false;
+        gameState.enemies.forEach(enemy => {
+            const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+            if (dist < 100) {
+                this.scared = true;
+                const angle = Math.atan2(this.y - enemy.y, this.x - enemy.x);
+                const nx = this.x + Math.cos(angle) * 0.8, ny = this.y + Math.sin(angle) * 0.8;
+                if (!blockedForBody(nx, this.y, this.size)) this.x = nx;
+                if (!blockedForBody(this.x, ny, this.size)) this.y = ny;
+            }
+        });
     }
 
     takeDamage(damage) {
+        if (this.rescued || this.dead) return;
         this.health -= damage;
         if (this.health <= 0 && !this.dead) {
             this.die();
@@ -753,11 +876,7 @@ class Civilian {
 
     die() {
         this.dead = true;
-        //Mission failure - Hostage killed
-        gameState.playing = false;
-        setTimeout(() => {
-            gameOver("A hostage was killed. You must protect all civilians.");
-        }, MISSION_FAILURE_ALERT_DELAY);
+        gameOver("A hostage was killed. Check your fire near civilians.");
     }
 
     draw(ctx) {
@@ -765,10 +884,15 @@ class Civilian {
     }
 }
 
+// ── Door ──
+
 class Door {
     constructor(x, y, locked = false) {
-        this.x = x;
-        this.y = y;
+        // Stored at the tile centre whatever the loader passes in.
+        this.gx = Math.floor(x / TILE_SIZE);
+        this.gy = Math.floor(y / TILE_SIZE);
+        this.x = this.gx * TILE_SIZE + TILE_SIZE / 2;
+        this.y = this.gy * TILE_SIZE + TILE_SIZE / 2;
         this.size = TILE_SIZE;
         this.locked = locked;
         this.open = false;
@@ -788,8 +912,10 @@ class Door {
 
     takeDamage(damage) {
         this.health -= damage;
-        if (this.health <= 0) {
+        if (this.health <= 0 && this.locked) {
             this.unlock();
+            this.open = true;
+            HUD.notice('Door broken open');
         }
     }
 
@@ -798,43 +924,67 @@ class Door {
     }
 }
 
+// ── Throwables ──
+
 class Grenade {
-    constructor(x, y, angle, owner = "player") {
+    constructor(x, y, angle, owner = "player", kind = "grenade") {
         this.x = x;
         this.y = y;
         this.vx = Math.cos(angle) * 5;
         this.vy = Math.sin(angle) * 5;
         this.owner = owner;
-        this.timer = 3000; // in ms
+        this.kind = kind; // grenade, smoke, stun
+        this.explodeAt = gameState.now + (GRENADE_FUSE_MS[kind] || 2000);
         this.exploded = false;
-        this.blastRadius = 80;
+        this.blastRadius = 80 * (gameState.blastScale || 1);
         this.damage = 60;
     }
 
+    get timer() {
+        return this.explodeAt - gameState.now;
+    }
+
     update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        //more sophisticated friction system (Throw in the air, then sliding -> changing Friction) TODO
+        const nx = this.x + this.vx, ny = this.y + this.vy;
+        if (blockedForBody(nx, this.y, 6)) this.vx = -this.vx * 0.5; else this.x = nx;
+        if (blockedForBody(this.x, ny, 6)) this.vy = -this.vy * 0.5; else this.y = ny;
         this.vx *= 0.95;
         this.vy *= 0.95;
 
-        this.timer -= 16;
-
-        if (this.timer <= 0 && !this.exploded) {
+        if (gameState.now >= this.explodeAt && !this.exploded) {
             this.explode();
             return false;
         }
-
         return !this.exploded;
     }
 
     explode() {
         this.exploded = true;
+        if (this.kind === 'smoke') {
+            gameState.smokes.push(new SmokeCloud(this.x, this.y));
+            AudioSystem.playSmoke();
+            return;
+        }
+        if (this.kind === 'stun') {
+            AudioSystem.playFlashbang();
+            Art.flashburst(this.x, this.y);
+            gameState.enemies.forEach(enemy => {
+                if (Math.hypot(enemy.x - this.x, enemy.y - this.y) < FLASHBANG_RADIUS && lineOfSight(this.x, this.y, enemy.x, enemy.y, { smoke: false })) {
+                    enemy.stun();
+                }
+            });
+            const p = gameState.player;
+            if (p && Math.hypot(p.x - this.x, p.y - this.y) < FLASHBANG_RADIUS * 0.8 && lineOfSight(this.x, this.y, p.x, p.y, { smoke: false })) {
+                HUD.whiteFlash(900);
+            }
+            gameState.enemies.forEach(e => e.hear(this.x, this.y));
+            return;
+        }
 
         AudioSystem.playExplosion();
         Art.explosion(this.x, this.y, this.blastRadius);
+        HUD.shake(7, 300);
 
-        //particles
         for (let i = 0; i < 30; i++) {
             gameState.particles.push(new Particle(
                 this.x + (Math.random() - 0.5) * 40,
@@ -844,55 +994,48 @@ class Grenade {
             ));
         }
 
-        // Damage system (Doors & Enemies & Hostages)
-        // Apply area damage with linear falloff and light knockback.
         const applyBlast = (objX, objY, maxDamage) => {
             const dist = Math.hypot(objX - this.x, objY - this.y);
-            if (dist > this.blastRadius) return 0;
+            if (dist > this.blastRadius) return null;
             const dmg = Math.max(0, Math.round(maxDamage * (1 - dist / this.blastRadius)));
-            // knockback vector (small)
             const nx = (objX - this.x) / (dist || 1);
             const ny = (objY - this.y) / (dist || 1);
             const force = (this.blastRadius - dist) / this.blastRadius * 6;
             return { dmg, nx, ny, force, dist };
         };
 
-        // Doors
         gameState.doors.forEach(door => {
-            const res = applyBlast(door.x, door.y, this.damage * 0.8); // doors take slightly reduced blast
-            if (res && res.dmg > 0) {
-                door.takeDamage(res.dmg);
-            }
+            const res = applyBlast(door.x, door.y, this.damage * 0.8);
+            if (res && res.dmg > 0) door.takeDamage(res.dmg);
         });
 
-        // Enemies
-        gameState.enemies.forEach(enemy => {
+        gameState.enemies.slice().forEach(enemy => {
             const res = applyBlast(enemy.x, enemy.y, this.damage);
             if (res && res.dmg > 0) {
                 enemy.takeDamage(res.dmg);
-                // small knockback if not colliding
-                enemy.x += res.nx * res.force;
-                enemy.y += res.ny * res.force;
+                if (enemy.health > 0 && !blockedForBody(enemy.x + res.nx * res.force, enemy.y + res.ny * res.force, enemy.size)) {
+                    enemy.x += res.nx * res.force;
+                    enemy.y += res.ny * res.force;
+                }
             }
         });
+        gameState.enemies.forEach(e => e.hear(this.x, this.y));
 
-        // Civilians / Hostages
         gameState.civilians.forEach(civ => {
             const res = applyBlast(civ.x, civ.y, this.damage * 0.9);
-            if (res && res.dmg > 0 && !civ.dead && !civ.rescued) {
-                civ.takeDamage(res.dmg);
-            }
+            if (res && res.dmg > 0 && !civ.dead && !civ.rescued) civ.takeDamage(res.dmg);
         });
 
-        // Player
-
         const player = gameState.player;
-        const res = applyBlast(player.x, player.y, this.damage);
-        if (res && res.dmg > 0) {
-            player.takeDamage(res.dmg);
-            // knockback
-            player.x += res.nx * res.force;
-            player.y += res.ny * res.force;
+        if (player) {
+            const res = applyBlast(player.x, player.y, this.damage);
+            if (res && res.dmg > 0) {
+                player.takeDamage(res.dmg, { x: this.x, y: this.y });
+                if (!blockedForBody(player.x + res.nx * res.force, player.y + res.ny * res.force, player.size)) {
+                    player.x += res.nx * res.force;
+                    player.y += res.ny * res.force;
+                }
+            }
         }
 
         checkObjectives();
@@ -903,16 +1046,66 @@ class Grenade {
     }
 }
 
+class SmokeCloud {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.start = gameState.now;
+        this.seed = Math.random() * 1000;
+    }
+
+    get age() {
+        return gameState.now - this.start;
+    }
+
+    get alive() {
+        return this.age < SMOKE_DURATION_MS;
+    }
+
+    radius() {
+        const grow = Math.min(1, this.age / SMOKE_GROW_MS);
+        const fade = Math.max(0, Math.min(1, (SMOKE_DURATION_MS - this.age) / 1500));
+        return SMOKE_RADIUS * grow * (0.6 + 0.4 * fade);
+    }
+
+    /** Does the segment (x1,y1)-(x2,y2) cross the dense part of the cloud? */
+    blocks(x1, y1, x2, y2) {
+        const r = this.radius() * 0.85;
+        if (r < 10) return false;
+        const dx = x2 - x1, dy = y2 - y1;
+        const len2 = dx * dx + dy * dy || 1;
+        let t = ((this.x - x1) * dx + (this.y - y1) * dy) / len2;
+        t = Math.max(0, Math.min(1, t));
+        const px = x1 + dx * t, py = y1 + dy * t;
+        return Math.hypot(px - this.x, py - this.y) < r;
+    }
+
+    draw(ctx) {
+        Art.smoke(ctx, this);
+    }
+}
+
+// ── Bullet ──
+
 class Bullet {
     constructor(x, y, angle, damage, owner) {
         this.x = x;
         this.y = y;
+        this.fromX = x;
+        this.fromY = y;
         this.angle = angle;
         this.damage = damage;
         this.owner = owner;
         Art.muzzle(x, y, angle);
         this.speed = 15;
-        this.lifetime = 100;
+        this.lifetime = 70;
+    }
+
+    impact(color = '#ff0') {
+        this.lifetime = 0;
+        for (let i = 0; i < 3; i++) {
+            gameState.particles.push(new Particle(this.x, this.y, color, 200));
+        }
     }
 
     update() {
@@ -920,84 +1113,52 @@ class Bullet {
         this.y += Math.sin(this.angle) * this.speed;
         this.lifetime--;
 
-        //check collisions
-
-        //wall
         const gridX = Math.floor(this.x / TILE_SIZE);
         const gridY = Math.floor(this.y / TILE_SIZE);
-        if (gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT) {
-            if (gameState.grid[gridY][gridX] === 1 || gameState.grid[gridY][gridX] === 3) {
-                this.lifetime = 0;
-                // Impact particles
-                for (let i = 0; i < 3; i++) {
-                    gameState.particles.push(new Particle(this.x, this.y, '#ff0', 200));
+        if (isSolidTile(gridX, gridY)) {
+            this.impact();
+            return false;
+        }
+
+        const door = doorAtTile(gridX, gridY);
+        if (door && !door.open) {
+            door.takeDamage(this.damage);
+            this.impact('#d7b35c');
+            return false;
+        }
+
+        if (this.owner === "player") {
+            for (const enemy of gameState.enemies) {
+                if (Math.hypot(enemy.x - this.x, enemy.y - this.y) < enemy.size / 2 + 3) {
+                    gameState.player.stats.hits++;
+                    enemy.takeDamage(this.damage);
+                    this.lifetime = 0;
+                    return false;
                 }
+            }
+        } else {
+            const player = gameState.player;
+            if (player && Math.hypot(player.x - this.x, player.y - this.y) < player.size / 2 + 1) {
+                player.takeDamage(this.damage, { x: this.fromX, y: this.fromY });
+                this.lifetime = 0;
+                return false;
             }
         }
 
-        //door
-        gameState.doors.forEach(door => {
-            const doorGridX = Math.floor(door.x / TILE_SIZE);
-            const doorGridY = Math.floor(door.y / TILE_SIZE);
-            if (gridX === doorGridX && gridY === doorGridY && !door.open) {
-                door.takeDamage(this.damage);
+        for (const civilian of gameState.civilians) {
+            if (civilian.rescued || civilian.dead) continue;
+            if (Math.hypot(civilian.x - this.x, civilian.y - this.y) < civilian.size / 2) {
+                civilian.takeDamage(this.damage);
                 this.lifetime = 0;
-                //particles
-                for (let i = 0; i < 3; i++) {
-                    gameState.particles.push(new Particle(this.x, this.y, '#ff0', 200));
+                for (let i = 0; i < 5; i++) {
+                    gameState.particles.push(new Particle(
+                        civilian.x + (Math.random() - 0.5) * 10,
+                        civilian.y + (Math.random() - 0.5) * 10,
+                        "#f00", 800
+                    ));
                 }
+                return false;
             }
-        });
-
-        if (this.owner === "player") {
-            gameState.enemies.forEach(enemy => {
-                const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
-                if (dist < enemy.size / 2) {
-                    enemy.takeDamage(this.damage);
-                    this.lifetime = 0;
-                }
-            });
-
-            gameState.civilians.forEach(civilian => {
-                const dist = Math.hypot(civilian.x - this.x, civilian.y - this.y);
-                if (dist < civilian.size / 2) {
-                    civilian.takeDamage(this.damage);
-                    this.lifetime = 0;
-                    //Particles
-                    for (let i = 0; i < 5; i++) {
-                        gameState.particles.push(new Particle(
-                            civilian.x + (Math.random() - 0.5) * 10,
-                            civilian.y + (Math.random() - 0.5) * 10,
-                            "#f00", 800
-                        ));
-                    }
-                }
-            });
-        } else if (this.owner === "enemy") {
-            const player = gameState.player;
-            if (player) {
-                const dist = Math.hypot(player.x - this.x, player.y - this.y);
-                if (dist < player.size / 2) {
-                    player.takeDamage(this.damage);
-                    this.lifetime = 0;
-                }
-            }
-
-            gameState.civilians.forEach(civilian => {
-                const dist = Math.hypot(civilian.x - this.x, civilian.y - this.y);
-                if (dist < civilian.size / 2) {
-                    civilian.takeDamage(this.damage);
-                    this.lifetime = 0;
-                    //Particles
-                    for (let i = 0; i < 5; i++) {
-                        gameState.particles.push(new Particle(
-                            civilian.x + (Math.random() - 0.5) * 10,
-                            civilian.y + (Math.random() - 0.5) * 10,
-                            "#f00", 800
-                        ));
-                    }
-                }
-            });
         }
 
         return this.lifetime > 0;
@@ -1024,7 +1185,7 @@ class Particle {
         this.y += this.vy;
         this.vx *= 0.96;
         this.vy *= 0.96;
-        this.lifetime -= 16; // lifetime is in milliseconds
+        this.lifetime -= gameState.dt || 16;
         return this.lifetime > 0;
     }
 

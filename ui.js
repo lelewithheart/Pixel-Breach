@@ -1,277 +1,271 @@
-function updateUI() {
-    if (!gameState.player) return;
+// DOM side of the game: panels, overlays, menus and input.
 
-    const player = gameState.player;
+const CONTROLS = [
+    ['W A S D', 'Move'], ['SHIFT', 'Sprint'], ['C', 'Crouch (less spread, slower)'], ['Q / F', 'Lean left / right'],
+    ['MOUSE', 'Aim'], ['LEFT CLICK', 'Fire'], ['R', 'Reload'], ['1 / 2 / WHEEL', 'Switch weapon'],
+    ['E', 'Rescue hostage, open door, lockpick'], ['SPACE', 'Use equipment'], ['ESC', 'Pause'],
+];
 
-    document.getElementById('health-value').textContent = Math.floor(player.health);
-    document.getElementById('health-bar').style.width = (player.health / player.maxHealth * 100) + '%';
-
-    document.getElementById('armor-value').textContent = Math.floor(player.armor);
-    document.getElementById('armor-bar').style.width = (player.armor / player.maxArmor * 100) + '%';
-
-    document.getElementById('stamina-value').textContent = Math.floor(player.stamina);
-    document.getElementById('stamina-bar').style.width = (player.stamina / player.maxStamina * 100) + '%';
-
-    document.getElementById('stance-value').textContent = player.stance.toUpperCase();
-    document.getElementById('enemy-count').textContent = gameState.enemies.length;
-    document.getElementById('hostage-count').textContent =
-        gameState.civilians.filter(c => !c.rescued).length + '/' + gameState.civilians.length;
-
-    // Update weapon displays
-
-    // Only show unlocked weapons in loadout
-    const unlocks = gameState.unlocks || {};
-    const primaryWeapon = player.weapons.primary;
-    document.getElementById('primary-weapon').innerHTML = `
-        <div>PRIMARY: ${primaryWeapon.name.toUpperCase()}</div>
-        <div>AMMO: ${primaryWeapon.currentAmmo}/${primaryWeapon.reserveAmmo}</div>
-    `;
-
-    const secondaryWeapon = player.weapons.secondary;
-    document.getElementById('secondary-weapon').innerHTML = `
-        <div>SECONDARY: ${secondaryWeapon.name.toUpperCase()}</div>
-        <div>AMMO: ${secondaryWeapon.currentAmmo}/${secondaryWeapon.reserveAmmo}</div>
-    `;
-
-    document.getElementById('equipment-slot').innerHTML = `
-        <div>EQUIPMENT: ${player.equipment.name.toUpperCase()}</div>
-        <div>QTY: ${player.equipment.quantity}</div>
-    `;
-
-    // Highlight active weapon
-    document.getElementById('primary-weapon').classList.toggle('active', player.currentWeapon === 'primary');
-    document.getElementById('secondary-weapon').classList.toggle('active', player.currentWeapon === 'secondary');
+function renderControls(el) {
+    el.innerHTML = CONTROLS.map(([k, v]) => `<div class="key-row"><kbd>${k}</kbd><span>${v}</span></div>`).join('');
 }
 
-// Input event listeners
+const DIFFICULTY_COLORS = { easy: '#5dff9f', medium: '#ffd25a', hard: '#ff5a4a', endless: '#55e6ff' };
+
+function renderObjectivesPanel() {
+    const list = document.getElementById('objectives-list');
+    if (!list) return;
+    list.innerHTML = getObjectiveState().map(it => `
+        <div class="objective-item ${it.done ? 'objective-complete' : 'objective-incomplete'}">
+            <span>${it.done ? '✓' : '•'} ${it.label}</span><span>${it.progress}</span>
+        </div>`).join('');
+}
+
+function updateUI() {
+    const m = gameState.currentMission;
+    if (m) {
+        document.getElementById('mission-name').textContent = m.name;
+        const diff = document.getElementById('mission-diff');
+        diff.textContent = (m.difficulty || 'custom').toUpperCase();
+        diff.style.color = DIFFICULTY_COLORS[m.difficulty] || '#9aa3ad';
+        document.getElementById('mission-desc').textContent = m.description || '';
+    }
+    renderObjectivesPanel();
+
+    const player = gameState.player;
+    if (!player) return;
+    const slot = (id, key, weapon, active) => {
+        const el = document.getElementById(id);
+        el.classList.toggle('active', active);
+        el.innerHTML = `<div><kbd>${key}</kbd> ${PB.esc(weapon.name.toUpperCase())}</div><div class="slot-sub">${weapon.currentAmmo} / ${weapon.reserveAmmo}</div>`;
+    };
+    slot('primary-weapon', '1', player.weapons.primary, player.currentWeapon === 'primary');
+    slot('secondary-weapon', '2', player.weapons.secondary, player.currentWeapon === 'secondary');
+    const eq = document.getElementById('equipment-slot');
+    eq.innerHTML = `<div><kbd>SPACE</kbd> ${PB.esc(player.equipment.name.toUpperCase())}</div><div class="slot-sub">x${player.equipment.quantity}</div>`;
+}
+
+// ── Input ──
+
 document.addEventListener('keydown', (e) => {
-    keys[e.key] = true;
+    const inField = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
+    if (inField) return;
+
+    if (e.key === 'Escape') {
+        if (gameState.screen === 'playing' && (gameState.playing || gameState.paused)) { e.preventDefault(); togglePause(); }
+        return;
+    }
+    if (gameState.screen === 'briefing' && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        startPlay();
+        return;
+    }
+    if (gameState.screen === 'lockpick') {
+        if (e.key === ' ') { e.preventDefault(); attemptLockpick(); }
+        return;
+    }
+
     keys[e.key.toLowerCase()] = true;
-    keys[e.key.toUpperCase()] = true;
+    if (e.key === 'Shift') keys['Shift'] = true;
 
     if (!gameState.playing || !gameState.player) return;
-
-    if (e.key === 'r' || e.key === 'R') {
-        gameState.player.reload();
-    }
-    if (e.key === '1') {
-        gameState.player.currentWeapon = 'primary';
-        updateUI();
-    }
-    if (e.key === '2') {
-        gameState.player.currentWeapon = 'secondary';
-        updateUI();
-    }
-    if (e.key === ' ') {
-        e.preventDefault();
-        gameState.player.useEquipment();
-    }
-    if (e.key === 'e' || e.key === 'E') {
-        gameState.player.interact();
-    }
-    if (e.key === 'Control') {
-        gameState.player.stance = gameState.player.stance === 'crouched' ? 'standing' : 'crouched';
-        updateUI();
-    }
-    if (e.key === 'q' || e.key === 'Q') {
-        gameState.player.lean = gameState.player.lean === 'left' ? 'none' : 'left';
-    }
-    if (e.key === 'f' || e.key === 'F') {
-        gameState.player.lean = gameState.player.lean === 'right' ? 'none' : 'right';
+    const p = gameState.player;
+    if (e.key === ' ') { e.preventDefault(); if (!e.repeat) p.useEquipment(); }
+    if (e.repeat) return;
+    switch (e.key.toLowerCase()) {
+        case 'r': p.reload(); break;
+        case '1': p.switchWeapon('primary'); break;
+        case '2': p.switchWeapon('secondary'); break;
+        case 'e': p.interact(); break;
+        case 'c':
+            p.stance = p.stance === 'crouched' ? 'standing' : 'crouched';
+            HUD.notice(p.stance === 'crouched' ? 'Crouched: steadier aim, slower' : 'Standing');
+            break;
+        case 'q': p.lean = p.lean === 'left' ? 'none' : 'left'; break;
+        case 'f': p.lean = p.lean === 'right' ? 'none' : 'right'; break;
     }
 });
 
 document.addEventListener('keyup', (e) => {
-    keys[e.key] = false;
     keys[e.key.toLowerCase()] = false;
-    keys[e.key.toUpperCase()] = false;
+    if (e.key === 'Shift') keys['Shift'] = false;
 });
 
-// Reset all keys when window loses focus (prevents stuck keys)
 window.addEventListener('blur', () => {
-    for (let key in keys) {
-        keys[key] = false;
-    }
+    for (const key in keys) keys[key] = false;
     mouse.down = false;
+    if (gameState.playing && gameState.screen === 'playing') pauseGame();
 });
 
-// Canvas mouse events
-canvas.addEventListener('mousemove', (e) => {
+function updateMouseScreen(e) {
     const rect = canvas.getBoundingClientRect();
-    mouse.x = e.clientX - rect.left;
-    mouse.y = e.clientY - rect.top;
+    mouse.sx = (e.clientX - rect.left) * VIEW_W / rect.width;
+    mouse.sy = (e.clientY - rect.top) * VIEW_H / rect.height;
+}
 
-    if (gameState.player) {
-        gameState.player.angle = Math.atan2(mouse.y - gameState.player.y, mouse.x - gameState.player.x);
-    }
-});
-
+canvas.addEventListener('mousemove', updateMouseScreen);
 canvas.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    updateMouseScreen(e);
     mouse.down = true;
-
-    if (gameState.editorMode) {
-        placeInEditor(mouse.x, mouse.y);
-    } else if (gameState.playing && gameState.player) {
-        gameState.player.shoot();
+    if (gameState.playing && gameState.player) {
+        updateMouseWorld();
+        gameState.player.shoot(true);
     }
 });
+canvas.addEventListener('mouseup', () => { mouse.down = false; });
+canvas.addEventListener('mouseleave', () => { mouse.down = false; });
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+canvas.addEventListener('wheel', (e) => {
+    if (!gameState.playing || !gameState.player) return;
+    e.preventDefault();
+    gameState.player.switchWeapon(gameState.player.currentWeapon === 'primary' ? 'secondary' : 'primary');
+}, { passive: false });
 
-canvas.addEventListener('mouseup', () => {
-    mouse.down = false;
-});
+// ── Briefing and pause ──
 
-// UI Event Listeners
-document.getElementById('start-game').addEventListener('click', () => {
+function showBriefing() {
+    const m = gameState.currentMission || {};
+    document.getElementById('brief-title').textContent = m.name || 'Custom map';
+    const meta = document.getElementById('brief-meta');
+    meta.textContent = `${(m.difficulty || 'custom').toUpperCase()} · ${gameState.enemyTotal} hostiles · ${gameState.civilians.length} hostages`;
+    meta.style.color = DIFFICULTY_COLORS[m.difficulty] || '#9aa3ad';
+    document.getElementById('brief-desc').textContent = m.description || '';
+    document.getElementById('brief-objectives').innerHTML = getObjectiveState().map(it => `<li>${PB.esc(it.label)}</li>`).join('');
+    const tips = (m.tutorialSteps || []).slice();
+    if (gameState.endlessMode) gameState.endlessModifiers.forEach(mod => tips.unshift(`${mod.name}: ${mod.desc}`));
+    const tipsBox = document.getElementById('brief-tips-box');
+    tipsBox.style.display = tips.length ? '' : 'none';
+    document.getElementById('brief-tips').innerHTML = tips.map(t => `<li>${PB.esc(t)}</li>`).join('');
+    renderControls(document.getElementById('brief-controls'));
+    document.getElementById('briefing-screen').classList.add('active');
+}
+
+document.getElementById('btn-start-mission').addEventListener('click', () => { AudioSystem.playClick(); startPlay(); });
+document.getElementById('btn-brief-menu').addEventListener('click', () => { AudioSystem.playClick(); backToMenu(); });
+document.getElementById('btn-resume').addEventListener('click', () => { AudioSystem.playClick(); resumeGame(); });
+document.getElementById('btn-restart').addEventListener('click', () => { AudioSystem.playClick(); restartCurrent(); });
+document.getElementById('btn-controls').addEventListener('click', () => {
     AudioSystem.playClick();
-    if (!gameState.player) {
-        createDefaultLevel();
-    }
-    gameState.playing = true;
-    gameState.editorMode = false;
-    document.getElementById('level-editor').classList.remove('active');
-    AudioSystem.init();
-    AudioSystem.playMusic("gameplay");
+    const box = document.getElementById('pause-controls');
+    renderControls(box);
+    box.classList.toggle('active');
 });
+document.getElementById('btn-quit').addEventListener('click', () => { AudioSystem.playClick(); backToMenu(); });
+
+// ── Loadout ──
+
+const SHOP_PRICES = { m4a1: 100, shotgun: 150, sniper: 200 };
+
+function statBar(label, pct, value) {
+    return `<div class="stat-row"><span>${label}</span><div class="stat-track"><div class="stat-fill" style="width:${Math.round(pct * 100)}%"></div></div><em>${value}</em></div>`;
+}
+
+function buildLoadoutGrid() {
+    const maxDmg = 100, maxRpm = 600, maxMag = 30, maxReload = 2800;
+    const weaponCard = (id, w, type) => {
+        const rpm = Math.round(60000 / w.fireRate);
+        const dmg = w.damage * (w.pellets || 1);
+        return `<div class="loadout-option" data-type="${type}" data-weapon="${id}">
+            <strong>${PB.esc(w.name)}</strong>
+            ${statBar('DMG', Math.min(1, dmg / maxDmg), dmg + (w.pellets ? ' (' + w.pellets + ' pellets)' : ''))}
+            ${statBar('RATE', Math.min(1, rpm / maxRpm), rpm + ' rpm' + (w.auto ? ' auto' : ''))}
+            ${statBar('MAG', Math.min(1, w.magSize / maxMag), w.magSize + ' / ' + w.totalAmmo)}
+            ${statBar('RELOAD', 1 - w.reloadTime / maxReload, (w.reloadTime / 1000).toFixed(1) + ' s')}
+            <span class="lock-tag">FIELD SHOP · ${SHOP_PRICES[id] || 0} CR</span>
+        </div>`;
+    };
+    document.getElementById('loadout-primary').innerHTML = ['mp5', 'm4a1', 'shotgun', 'sniper'].map(id => weaponCard(id, WEAPONS[id], 'primary')).join('');
+    document.getElementById('loadout-secondary').innerHTML = ['m1911', 'glock'].map(id => weaponCard(id, WEAPONS[id], 'secondary')).join('');
+    document.getElementById('loadout-equipment').innerHTML = Object.entries(EQUIPMENT).map(([id, e]) => `
+        <div class="loadout-option" data-type="equipment" data-weapon="${id}">
+            <strong>${PB.esc(e.name)}</strong><span class="pb-dim">x${e.quantity + (gameState.unlocks.bonusEquipment || 0)}</span><br>
+            <span class="eq-desc">${PB.esc(e.desc)}</span>
+        </div>`).join('');
+
+    document.querySelectorAll('.loadout-option').forEach(option => {
+        option.addEventListener('click', () => {
+            if (option.classList.contains('locked')) {
+                PB.toast('Unlock this weapon in the Field Shop with credits from missions.');
+                return;
+            }
+            AudioSystem.playClick();
+            gameState.loadout[option.dataset.type] = option.dataset.weapon;
+            writeJSON('pb_loadout', gameState.loadout);
+            PB.refreshLoadout();
+        });
+    });
+    PB.refreshLoadout();
+}
+buildLoadoutGrid();
+
+function openLoadout() {
+    buildLoadoutGrid();
+    document.getElementById('loadout-credits').textContent = gameState.currency + ' CR';
+    document.getElementById('loadout-modal').classList.add('active');
+}
+
+function beginMission(mission) {
+    gameState.selectedMission = mission;
+    gameState.selectedMapData = null;
+    document.getElementById('level-select-screen').classList.remove('active');
+    document.getElementById('home-screen').classList.remove('active');
+    openLoadout();
+}
 
 document.getElementById('close-loadout').addEventListener('click', () => {
     AudioSystem.playClick();
     document.getElementById('loadout-modal').classList.remove('active');
+    gameState.selectedMission = null;
+    gameState.selectedMapData = null;
+    if (gameState.screen === 'home') document.getElementById('home-screen').classList.add('active');
 });
 
 document.getElementById('confirm-loadout').addEventListener('click', () => {
     AudioSystem.playClick();
     document.getElementById('loadout-modal').classList.remove('active');
-
-    // If we have a selected mission, load it
     if (gameState.selectedMission) {
-        loadMission(gameState.selectedMission.id);
+        const m = gameState.selectedMission;
         gameState.selectedMission = null;
-        // Music will be played when START GAME is pressed
+        loadMission(m.id);
     } else if (gameState.selectedMapData) {
-        // Load community map
-        loadLevelFromData(gameState.selectedMapData);
+        const data = gameState.selectedMapData;
         gameState.selectedMapData = null;
-        gameState.screen = 'playing';
-        // Music will be played when START GAME is pressed
-    } else if (gameState.player) {
-        // Update existing player loadout
-        gameState.player.weapons.primary = gameState.player.createWeapon(gameState.loadout.primary);
-        gameState.player.weapons.secondary = gameState.player.createWeapon(gameState.loadout.secondary);
-        gameState.player.equipment = { ...EQUIPMENT[gameState.loadout.equipment] };
-        updateUI();
+        loadLevelFromData(data);
     }
 });
 
-document.getElementById('toggle-editor').addEventListener('click', () => {
-    AudioSystem.playClick();
-    gameState.editorMode = !gameState.editorMode;
-    gameState.playing = !gameState.editorMode;
+// ── Menus ──
 
-    if (gameState.editorMode) {
-        if (!gameState.player) {
-            initGrid();
-            gameState.player = new Player(100, 100);
-        }
-        document.getElementById('level-editor').classList.add('active');
-        AudioSystem.playMusic("menu");
-    } else {
-        document.getElementById('level-editor').classList.remove('active');
-        AudioSystem.playMusic("gameplay");
-    }
-});
-
-document.getElementById('reset-game').addEventListener('click', () => {
-    AudioSystem.playClick();
-    gameState.playing = false;
-    if (gameState.currentMission) {
-        loadMission(gameState.currentMission.id);
-    } else {
-        createDefaultLevel();
-    }
-});
-
-// Loadout selection
-
-// Only allow selection of unlocked weapons/equipment
-document.querySelectorAll('.loadout-option').forEach(option => {
-    option.addEventListener('click', () => {
-        if (option.classList.contains('locked')) return;
-        AudioSystem.playClick();
-        gameState.loadout[option.dataset.type] = option.dataset.weapon;
-        PB.refreshLoadout();
-    });
-});
-PB.refreshLoadout();
-
-// Editor tools
-document.querySelectorAll('.editor-tool').forEach(btn => {
-    btn.addEventListener('click', () => {
-        AudioSystem.playClick();
-        document.querySelectorAll('.editor-tool').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        const toolName = btn.id.replace('tool-', '');
-        gameState.currentTool = toolName;
-    });
-});
-
-document.getElementById('save-level').addEventListener('click', () => {
-    AudioSystem.playSelect();
-    saveLevel();
-});
-document.getElementById('load-level').addEventListener('click', () => {
-    AudioSystem.playClick();
-    loadLevel();
-});
-document.getElementById('clear-level').addEventListener('click', () => {
-    AudioSystem.playClick();
-    clearLevel();
-});
-
-const DIFFICULTY_COLORS = {
-    "easy": "#0f0",
-    "medium": "#ff0",
-    "hard": "#f00"
-};
-
-// Home screen navigation
 document.getElementById('btn-campaign').addEventListener('click', () => {
     AudioSystem.playClick();
     document.getElementById('home-screen').classList.remove('active');
     document.getElementById('level-select-screen').classList.add('active');
 
-    // Populate mission list
     const missionList = document.getElementById('mission-list');
     missionList.innerHTML = '';
     MISSIONS.forEach(mission => {
         const locked = mission.pack && !PB.packOwned();
-        const diffColor = DIFFICULTY_COLORS[mission.difficulty] || "#888";
-        const missionDiv = document.createElement('div');
-        missionDiv.style.cssText = 'padding: 15px; margin: 10px 0; background: #333; border: 1px solid #555; cursor: pointer;';
-        missionDiv.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <strong style="color: ${locked ? '#888' : '#0f0'};">Mission ${mission.id}: ${mission.name}${mission.pack ? ' · PACK' : ''}${locked ? ' 🔒' : ''}</strong>
-                <span style="color: ${diffColor}; font-size: 10px; text-transform: uppercase;">${mission.difficulty || 'medium'}</span>
+        const prog = gameState.progress[mission.id];
+        const ents = mission.mapData.entities || {};
+        const row = document.createElement('div');
+        row.className = 'mission-row' + (locked ? ' locked' : '') + (prog && prog.done ? ' done' : '');
+        row.innerHTML = `
+            <div class="mission-head">
+                <strong>${prog && prog.done ? '✓ ' : ''}Mission ${mission.id}: ${PB.esc(mission.name)}${mission.pack ? ' · PACK' : ''}${locked ? ' 🔒' : ''}</strong>
+                <span style="color: ${DIFFICULTY_COLORS[mission.difficulty] || '#888'};">${(mission.difficulty || 'medium').toUpperCase()}</span>
             </div>
-            <span style="font-size: 12px; color: #aaa;">${mission.description}</span>
-            <div style="font-size: 10px; color: #666; margin-top: 5px;">
-                Objectives: ${mission.objectives.length}
-            </div>
-        `;
-        missionDiv.addEventListener('click', () => {
+            <span class="mission-desc">${PB.esc(mission.description)}</span>
+            <div class="mission-meta">${(ents.enemies || []).length} hostiles · ${(ents.civilians || []).length} hostages${prog && prog.done ? ' · best ' + HUD.fmtTime(prog.best) : ''}</div>`;
+        row.addEventListener('click', () => {
             AudioSystem.playSelect();
             if (locked) {
                 PB.openPack(() => document.getElementById('btn-campaign').click());
                 return;
             }
-            // Store selected mission for loadout confirmation
-            gameState.selectedMission = mission;
-            document.getElementById('level-select-screen').classList.remove('active');
-            document.getElementById('loadout-modal').classList.add('active');
+            beginMission(mission);
         });
-        missionDiv.addEventListener('mouseenter', () => missionDiv.style.background = '#444');
-        missionDiv.addEventListener('mouseleave', () => missionDiv.style.background = '#333');
-        missionList.appendChild(missionDiv);
+        missionList.appendChild(row);
     });
 });
 
@@ -282,65 +276,38 @@ document.getElementById('btn-community').addEventListener('click', async () => {
 
     const communityList = document.getElementById('community-list');
     const maps = await loadCommunityMaps();
-
     communityList.innerHTML = '';
 
     if (maps.length > 0) {
         maps.forEach(map => {
-            const levelDiv = document.createElement('div');
-            levelDiv.style.cssText = 'padding: 15px; margin: 10px 0; background: #333; border: 1px solid #555; cursor: pointer;';
-            levelDiv.innerHTML = `
-                <strong style="color: #0f0;">${PB.esc(map.name)}</strong><br>
-                <span style="font-size: 12px;">${PB.esc(map.description)}</span><br>
-                <span style="font-size: 10px; color: #888;">By: ${PB.esc(map.author)}</span>
-            `;
-            levelDiv.addEventListener('click', async () => {
+            const row = document.createElement('div');
+            row.className = 'mission-row';
+            row.innerHTML = `
+                <div class="mission-head"><strong>${PB.esc(map.name)}</strong><span class="pb-dim">${PB.esc(map.source || '')}</span></div>
+                <span class="mission-desc">${PB.esc(map.description)}</span>
+                <div class="mission-meta">By ${PB.esc(map.author)}</div>`;
+            row.addEventListener('click', () => {
                 AudioSystem.playSelect();
-
-                // Load the map data
-                const mapData = map.data || await loadCommunityMapData();
-
-                if (mapData) {
-                    // Store the map data for loadout confirmation
-                    gameState.selectedMapData = mapData;
-                    document.getElementById('community-screen').classList.remove('active');
-                    document.getElementById('loadout-modal').classList.add('active');
-                }
+                gameState.selectedMission = null;
+                gameState.selectedMapData = map.data;
+                document.getElementById('community-screen').classList.remove('active');
+                openLoadout();
             });
-            levelDiv.addEventListener('mouseenter', () => levelDiv.style.background = '#444');
-            levelDiv.addEventListener('mouseleave', () => levelDiv.style.background = '#333');
-            communityList.appendChild(levelDiv);
+            communityList.appendChild(row);
         });
     } else {
-        communityList.innerHTML = '<p style="color: #888;">No saved level yet. Build one in the Level Editor!</p>';
+        communityList.innerHTML = '<p class="pb-dim">No saved level yet. Build one in the Level Editor and press Save, then it shows up here.</p>';
     }
 
     const loadFileDiv = document.createElement('div');
-    loadFileDiv.style.cssText = 'padding: 15px; margin: 20px 0 10px 0; text-align: center;';
-    loadFileDiv.innerHTML = `
-        <p style="color: #888; margin-bottom: 10px;">Or load a map file:</p>
-        <input type="file" id="community-map-input" accept=".json" style="display: none;">
-        <button id="community-load-file" style="padding: 10px 20px; cursor: pointer;">📂 Load Map File</button>
-    `;
+    loadFileDiv.style.cssText = 'padding: 15px 0 0; text-align: center;';
+    loadFileDiv.innerHTML = `<p class="pb-dim" style="margin-bottom: 8px;">Or load a map file somebody shared with you:</p>
+        <button id="community-load-file">📂 LOAD MAP FILE</button>`;
     communityList.appendChild(loadFileDiv);
-
-    setTimeout(() => {
-        const loadBtn = document.getElementById("community-load-file");
-        const fileInput = document.getElementById("community-map-input");
-        if (loadBtn && fileInput) {
-            loadBtn.addEventListener("click", () => {
-                AudioSystem.playClick();
-                fileInput.click();
-            });
-            fileInput.addEventListener("change", (e) => {
-                if (e.target.files.length > 0) {
-                    loadLevelFromFile(e.target.files[0]);
-                    document.getElementById("community-screen").classList.remove("active");
-                    e.target.value = "";
-                }
-            });
-        }
-    }, 0);
+    document.getElementById('community-load-file').addEventListener('click', () => {
+        AudioSystem.playClick();
+        document.getElementById('map-file-input').click();
+    });
 });
 
 document.getElementById('btn-editor-home').addEventListener('click', () => {
@@ -348,18 +315,44 @@ document.getElementById('btn-editor-home').addEventListener('click', () => {
     window.location.href = 'editor/editor.html';
 });
 
-// Load map file button
 document.getElementById('btn-load-map').addEventListener('click', () => {
     AudioSystem.playClick();
     document.getElementById('map-file-input').click();
 });
 
-// Map file input handler
 document.getElementById('map-file-input').addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
-        loadLevelFromFile(e.target.files[0]);
-        e.target.value = ''; // Reset for future loads
+        const file = e.target.files[0];
+        e.target.value = '';
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const data = JSON.parse(ev.target.result);
+                if (!MapLoader.validateMap(data)) throw new Error('invalid');
+                gameState.selectedMission = null;
+                gameState.selectedMapData = data;
+                document.getElementById('community-screen').classList.remove('active');
+                document.getElementById('home-screen').classList.remove('active');
+                openLoadout();
+            } catch (err) {
+                PB.toast('This map file is not valid.');
+            }
+        };
+        reader.readAsText(file);
     }
+});
+
+document.getElementById('btn-how').addEventListener('click', () => {
+    AudioSystem.playClick();
+    const box = document.createElement('div');
+    renderControls(box);
+    PB.dialog({
+        title: 'HOW TO PLAY',
+        html: `<p>Clear every hostile, rescue the hostages with <kbd>E</kbd>, then reach the green EXIT. Hostages die to stray bullets, so check your fire.</p>
+            <p class="pb-dim">Enemies hear gunshots and investigate. Closed doors and smoke block their view. Crouching tightens your aim, sprinting widens it.</p>
+            <div class="key-grid">${box.innerHTML}</div>`,
+        buttons: [{ label: 'CLOSE', primary: true }],
+    });
 });
 
 document.getElementById('back-to-home').addEventListener('click', () => {
@@ -374,54 +367,16 @@ document.getElementById('back-to-home-community').addEventListener('click', () =
     document.getElementById('home-screen').classList.add('active');
 });
 
-// Back to menu buttons
-document.getElementById('back-to-menu-game').addEventListener('click', () => {
-    AudioSystem.playClick();
-    gameState.playing = false;
-    gameState.editorMode = false;
-    document.getElementById('game-container').style.display = 'none';
-    document.getElementById('home-screen').classList.add('active');
-    AudioSystem.playMusic("menu");
-});
-
-document.getElementById('back-to-menu-editor').addEventListener('click', () => {
-    AudioSystem.playClick();
-    gameState.playing = false;
-    gameState.editorMode = false;
-    document.getElementById('level-editor').classList.remove('active');
-    document.getElementById('game-container').style.display = 'none';
-    document.getElementById('home-screen').classList.add('active');
-    AudioSystem.playMusic("menu");
-});
-
-// Lockpick minigame
 document.getElementById('cancel-lockpick').addEventListener('click', () => {
     AudioSystem.playClick();
-    gameState.screen = 'playing';
-    gameState.playing = true;
-    gameState.lockpickTarget = null;
-    document.getElementById('lockpick-screen').classList.remove('active');
-    document.getElementById('game-container').style.display = 'flex';
+    closeLockpick();
 });
 
-// Lockpick animation loop
 setInterval(() => {
-    if (gameState.screen === 'lockpick') {
-        updateLockpick();
-    }
+    if (gameState.screen === 'lockpick') updateLockpick();
 }, 16);
 
-// Space bar for lockpick
-document.addEventListener('keydown', (e) => {
-    if (e.key === ' ' && gameState.screen === 'lockpick') {
-        e.preventDefault();
-        attemptLockpick();
-    }
-});
-
-// Initialize game
-initGrid();
-document.getElementById('game-container').style.display = 'none';
+// ── Audio ──
 
 function initAudioOnInteraction() {
     if (!AudioSystem.initialized) {
@@ -440,13 +395,7 @@ document.getElementById("toggle-music").addEventListener("click", () => {
     const btn = document.getElementById("toggle-music");
     btn.textContent = enabled ? "ON" : "OFF";
     btn.classList.toggle("active", enabled);
-    if (enabled) {
-        if (gameState.playing) {
-            AudioSystem.playMusic('gameplay');
-        } else {
-            AudioSystem.playMusic('menu');
-        }
-    }
+    if (enabled) AudioSystem.playMusic(gameState.playing ? 'gameplay' : 'menu');
     AudioSystem.playClick();
 });
 
@@ -461,9 +410,7 @@ document.getElementById('toggle-sfx').addEventListener('click', () => {
     const btn = document.getElementById('toggle-sfx');
     btn.textContent = enabled ? 'ON' : 'OFF';
     btn.classList.toggle('active', enabled);
-    if (enabled) {
-        AudioSystem.playClick();
-    }
+    if (enabled) AudioSystem.playClick();
 });
 
 document.getElementById('btn-endless').addEventListener('click', () => {
@@ -479,5 +426,9 @@ document.getElementById('btn-pack').addEventListener('click', () => {
     AudioSystem.playClick();
     PB.openPack();
 });
+document.getElementById('btn-pause-hint').addEventListener('click', () => { if (gameState.screen === 'playing') togglePause(); });
 
+// ── Boot ──
+initGrid();
+document.getElementById('game-container').style.display = 'none';
 gameLoop();
