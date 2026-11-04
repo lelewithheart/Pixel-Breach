@@ -1,10 +1,4 @@
-# GitHub Pages Deployment for Pixel Breach
-
-# This workflow builds and deploys only the static frontend files to GitHub Pages. Backend/server files are ignored.
-
-# - Only files needed for the browser game (HTML, CSS, JS, maps, editor, etc.) are deployed.
-# - The backend (community features) is always available at https://pixel-breach.onrender.com.
- 
+# Deploys the static game to GitHub Pages.
 name: Deploy static frontend to GitHub Pages
 
 on:
@@ -13,9 +7,17 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,12 +27,10 @@ jobs:
 
       - name: Copy static files
         run: |
-          cd Pixel-Breach
           mkdir public
-          cp index.html styles.css audio.js classes.js constants.js game-logic.js map-loader.js maps-community.js maps-official.js ui.js weapons.js README.md public/
+          cp index.html styles.css audio.js classes.js constants.js game-logic.js map-loader.js maps-community.js maps-official.js maps-pack.js pb-ui.js ui.js weapons.js public/
           cp -r editor public/editor
           cp -r maps public/maps
-          cd ..
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

@@ -194,29 +194,14 @@ document.getElementById('reset-game').addEventListener('click', () => {
 
 // Only allow selection of unlocked weapons/equipment
 document.querySelectorAll('.loadout-option').forEach(option => {
-    const type = option.dataset.type;
-    const weapon = option.dataset.weapon;
-    let locked = false;
-    if (type === 'primary' && (weapon === 'm4a1' && !(gameState.unlocks && gameState.unlocks.m4a1))) locked = true;
-    if (type === 'primary' && (weapon === 'shotgun' && !(gameState.unlocks && gameState.unlocks.shotgun))) locked = true;
-    if (type === 'primary' && (weapon === 'sniper' && !(gameState.unlocks && gameState.unlocks.sniper))) locked = true;
-    if (locked) {
-        option.classList.add('locked');
-        option.title = 'Unlock in Endless Mode Shop!';
-        option.style.opacity = 0.5;
-        option.style.pointerEvents = 'none';
-    } else {
-        option.addEventListener('click', () => {
-            AudioSystem.playClick();
-            // Deselect others of same type
-            document.querySelectorAll(`.loadout-option[data-type="${type}"]`).forEach(opt => {
-                opt.classList.remove('selected');
-            });
-            option.classList.add('selected');
-            gameState.loadout[type] = weapon;
-        });
-    }
+    option.addEventListener('click', () => {
+        if (option.classList.contains('locked')) return;
+        AudioSystem.playClick();
+        gameState.loadout[option.dataset.type] = option.dataset.weapon;
+        PB.refreshLoadout();
+    });
 });
+PB.refreshLoadout();
 
 // Editor tools
 document.querySelectorAll('.editor-tool').forEach(btn => {
@@ -259,12 +244,13 @@ document.getElementById('btn-campaign').addEventListener('click', () => {
     const missionList = document.getElementById('mission-list');
     missionList.innerHTML = '';
     MISSIONS.forEach(mission => {
+        const locked = mission.pack && !PB.packOwned();
         const diffColor = DIFFICULTY_COLORS[mission.difficulty] || "#888";
         const missionDiv = document.createElement('div');
         missionDiv.style.cssText = 'padding: 15px; margin: 10px 0; background: #333; border: 1px solid #555; cursor: pointer;';
         missionDiv.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <strong style="color: #0f0;">Mission ${mission.id}: ${mission.name}</strong>
+                <strong style="color: ${locked ? '#888' : '#0f0'};">Mission ${mission.id}: ${mission.name}${mission.pack ? ' · PACK' : ''}${locked ? ' 🔒' : ''}</strong>
                 <span style="color: ${diffColor}; font-size: 10px; text-transform: uppercase;">${mission.difficulty || 'medium'}</span>
             </div>
             <span style="font-size: 12px; color: #aaa;">${mission.description}</span>
@@ -274,6 +260,10 @@ document.getElementById('btn-campaign').addEventListener('click', () => {
         `;
         missionDiv.addEventListener('click', () => {
             AudioSystem.playSelect();
+            if (locked) {
+                PB.openPack(() => document.getElementById('btn-campaign').click());
+                return;
+            }
             // Store selected mission for loadout confirmation
             gameState.selectedMission = mission;
             document.getElementById('level-select-screen').classList.remove('active');
@@ -291,9 +281,6 @@ document.getElementById('btn-community').addEventListener('click', async () => {
     document.getElementById('community-screen').classList.add('active');
 
     const communityList = document.getElementById('community-list');
-    communityList.innerHTML = '<p style="color: #888;">Loading community levels...</p>';
-
-    // Load community maps from server/localStorage
     const maps = await loadCommunityMaps();
 
     communityList.innerHTML = '';
@@ -303,20 +290,15 @@ document.getElementById('btn-community').addEventListener('click', async () => {
             const levelDiv = document.createElement('div');
             levelDiv.style.cssText = 'padding: 15px; margin: 10px 0; background: #333; border: 1px solid #555; cursor: pointer;';
             levelDiv.innerHTML = `
-                <strong style="color: #0f0;">${map.name}</strong>
-                ${map.isServerMap ? '<span style="color: #0a0; font-size: 10px; margin-left: 10px;">✓ VERIFIED</span>' : ''}
-                <br>
-                <span style="font-size: 12px;">${map.description || 'Community level'}</span><br>
-                <span style="font-size: 10px; color: #888;">By: ${map.author || 'Unknown'}</span>
-                ${map.enemyCount ? `<span style="font-size: 10px; color: #666; margin-left: 10px;">👾 ${map.enemyCount}</span>` : ''}
+                <strong style="color: #0f0;">${PB.esc(map.name)}</strong><br>
+                <span style="font-size: 12px;">${PB.esc(map.description)}</span><br>
+                <span style="font-size: 10px; color: #888;">By: ${PB.esc(map.author)}</span>
             `;
             levelDiv.addEventListener('click', async () => {
                 AudioSystem.playSelect();
 
                 // Load the map data
-                const mapData = map.isServerMap
-                    ? await loadCommunityMapData(map.id)
-                    : map.data || await loadCommunityMapData(map.id);
+                const mapData = map.data || await loadCommunityMapData();
 
                 if (mapData) {
                     // Store the map data for loadout confirmation
@@ -330,7 +312,7 @@ document.getElementById('btn-community').addEventListener('click', async () => {
             communityList.appendChild(levelDiv);
         });
     } else {
-        communityList.innerHTML = '<p style="color: #888;">No community levels found. Create one in the Level Editor!</p>';
+        communityList.innerHTML = '<p style="color: #888;">No saved level yet. Build one in the Level Editor!</p>';
     }
 
     const loadFileDiv = document.createElement('div');
@@ -484,7 +466,18 @@ document.getElementById('toggle-sfx').addEventListener('click', () => {
     }
 });
 
-// Check if opened from admin panel for testing
-checkAdminTestMode();
+document.getElementById('btn-endless').addEventListener('click', () => {
+    AudioSystem.playClick();
+    document.getElementById('home-screen').classList.remove('active');
+    startEndlessMode();
+});
+document.getElementById('btn-shop').addEventListener('click', () => {
+    AudioSystem.playClick();
+    PB.openShop();
+});
+document.getElementById('btn-pack').addEventListener('click', () => {
+    AudioSystem.playClick();
+    PB.openPack();
+});
 
 gameLoop();

@@ -251,3 +251,106 @@ button.active {
     cursor: pointer;
     accent-color: #0f0;
 }
+
+.loadout-option.locked {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+#pb-dialog {
+    z-index: 2000;
+}
+
+.pb-box {
+    width: min(460px, calc(100vw - 32px));
+}
+
+.pb-body {
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.pb-body p {
+    margin: 8px 0;
+}
+
+.pb-dim {
+    color: #9aa3ad;
+}
+
+.pb-dim a {
+    color: inherit;
+}
+
+.pb-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid #444;
+}
+
+.pb-row button {
+    width: 90px;
+    margin: 0;
+    flex-shrink: 0;
+}
+
+button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.pb-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.pb-list {
+    list-style: none;
+    margin: 10px 0;
+}
+
+.pb-list li {
+    padding: 6px 0;
+    border-bottom: 1px solid #444;
+}
+
+.pb-price {
+    color: #ffd166;
+    font-size: 22px;
+    font-weight: bold;
+}
+
+#pb-code {
+    width: 100%;
+    padding: 8px;
+    margin-top: 4px;
+    background: #111;
+    border: 1px solid #666;
+    color: #fff;
+    font-family: inherit;
+}
+
+#pb-toasts {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 2100;
+    pointer-events: none;
+}
+
+.pb-toast {
+    padding: 8px 14px;
+    background: rgba(10, 30, 15, 0.92);
+    border: 1px solid #0f0;
+    color: #cfc;
+    font-size: 13px;
+    text-align: center;
+}

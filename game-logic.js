@@ -40,7 +40,7 @@ const ENDLESS_MODIFIERS = [
     { name: 'Double Enemies', desc: 'Twice as many enemies spawn each wave.', apply: () => {} },
     { name: 'Fast Enemies', desc: 'Enemies move 50% faster.', apply: () => {} },
     { name: 'Low Gravity', desc: 'Bullets and grenades arc more slowly.', apply: () => {} },
-    { name: 'Hardcore', desc: 'Player max health halved.', apply: () => { gameState.player.maxHealth = Math.floor(gameState.player.maxHealth / 2); } },
+    { name: 'Hardcore', desc: 'Player max health halved.', apply: () => { gameState.player.maxHealth = Math.floor(gameState.player.maxHealth / 2); gameState.player.health = gameState.player.maxHealth; } },
     { name: 'Rich', desc: 'Earn double currency.', apply: () => {} },
     { name: 'Armored Enemies', desc: 'Enemies have 50% more health.', apply: () => {} },
     { name: 'Big Explosions', desc: 'Grenades and explosions have double radius.', apply: () => {} },
@@ -62,6 +62,7 @@ function applyEndlessModifiers() {
 }
 
 function startEndlessMode() {
+    document.getElementById('game-container').style.display = 'flex';
     gameState.endlessMode = true;
     gameState.endlessScore = 0;
     gameState.endlessWave = 1;
@@ -90,7 +91,8 @@ function showEndlessUI() {
         if (gameState.endlessModifiers && gameState.endlessModifiers.length) {
             modText = '\nModifiers:\n' + gameState.endlessModifiers.map(m => m.name + ': ' + m.desc).join('\n');
         }
-        alert('Endless Mode!\nWave: ' + gameState.endlessWave + '\nScore: ' + gameState.endlessScore + '\nHighscore: ' + gameState.endlessHighscore + modText);
+        PB.toast(`Wave ${gameState.endlessWave}  ·  Score ${gameState.endlessScore}`);
+        if (modText && gameState.endlessWave === 1) PB.toast(gameState.endlessModifiers.map(m => m.name).join('  ·  '), 4000);
     }, 100);
 }
 
@@ -121,67 +123,25 @@ function endEndlessMode() {
     if (gameState.endlessModifiers.some(m => m.name === 'Rich')) earned *= 2;
     gameState.currency += earned;
     localStorage.setItem('pb_currency', gameState.currency);
-    showEndlessGameOver(earned);
-    showShopUI();
+    PB.dialog({
+        title: 'GAME OVER',
+        html: `<p>Waves survived: <strong>${gameState.endlessWave}</strong></p>
+            <p>Score: <strong>${gameState.endlessScore}</strong> (best ${gameState.endlessHighscore})</p>
+            <p>Credits earned: <strong>${earned}</strong> (total ${gameState.currency})</p>`,
+        buttons: [
+            { label: 'FIELD SHOP', primary: true, action: () => { setTimeout(() => PB.openShop(backToMenu), 0); } },
+            { label: 'BACK TO MENU', action: backToMenu },
+        ],
+    });
 }
 
-function showEndlessGameOver() {
-        // Accepts earned currency as argument
-        return function(earned) {
-            setTimeout(() => {
-                alert('GAME OVER!\nWaves survived: ' + gameState.endlessWave + '\nScore: ' + gameState.endlessScore + '\nHighscore: ' + gameState.endlessHighscore + '\nCurrency earned: ' + earned + '\nTotal currency: ' + gameState.currency);
-            }, 200);
-        }
+function backToMenu() {
+    gameState.playing = false;
+    gameState.editorMode = false;
+    document.getElementById('game-container').style.display = 'none';
+    document.getElementById('home-screen').classList.add('active');
+    AudioSystem.playMusic("menu");
 }
-// === SHOP / META-PROGRESSION ===
-function showShopUI() {
-    // Simple shop UI using prompt for now
-    setTimeout(() => {
-        let msg = 'SHOP - Spend your currency!\n';
-        msg += 'Currency: ' + gameState.currency + '\n';
-        msg += '1. Unlock M4A1 (100)\n';
-        msg += '2. Unlock Shotgun (150)\n';
-        msg += '3. Unlock Sniper (200)\n';
-        msg += '4. +10 Max Health (50)\n';
-        msg += '5. +1 Equipment Slot (75)\n';
-        msg += 'Enter number to buy, or Cancel to skip.';
-        const choice = prompt(msg);
-        if (!choice) return;
-        let bought = false;
-        if (choice === '1' && !gameState.unlocks.m4a1 && gameState.currency >= 100) {
-            gameState.unlocks.m4a1 = true;
-            gameState.currency -= 100;
-            bought = true;
-        } else if (choice === '2' && !gameState.unlocks.shotgun && gameState.currency >= 150) {
-            gameState.unlocks.shotgun = true;
-            gameState.currency -= 150;
-            bought = true;
-        } else if (choice === '3' && !gameState.unlocks.sniper && gameState.currency >= 200) {
-            gameState.unlocks.sniper = true;
-            gameState.currency -= 200;
-            bought = true;
-        } else if (choice === '4' && gameState.currency >= 50) {
-            gameState.player.maxHealth += 10;
-            gameState.currency -= 50;
-            bought = true;
-        } else if (choice === '5' && gameState.currency >= 75) {
-            if (!gameState.player.extraEquipment) gameState.player.extraEquipment = 0;
-            gameState.player.extraEquipment++;
-            gameState.currency -= 75;
-            bought = true;
-        }
-        if (bought) {
-            localStorage.setItem('pb_currency', gameState.currency);
-            localStorage.setItem('pb_unlocks', JSON.stringify(gameState.unlocks));
-            alert('Purchase successful!');
-        } else {
-            alert('Not enough currency or already unlocked.');
-        }
-        // Allow multiple purchases
-        showShopUI();
-    }, 500);
-}
-
 // Call this when all enemies are dead in endless mode
 function checkEndlessWaveClear() {
     if (gameState.endlessMode && gameState.enemies.length === 0) {
@@ -210,26 +170,18 @@ Player.prototype.takeDamage = function(damage) {
     }
 };
 
-// Add endless mode button to UI after DOM loaded
-window.addEventListener('DOMContentLoaded', () => {
-    const btn = document.createElement('button');
-    btn.textContent = 'ENDLESS MODE';
-    btn.style.fontSize = '16px';
-    btn.style.padding = '15px';
-    btn.style.margin = '10px';
-    btn.onclick = () => {
-        document.getElementById('home-screen').classList.remove('active');
-        startEndlessMode();
-    };
-    const home = document.getElementById('home-screen').querySelector('.modal-content');
-    home.appendChild(btn);
-});
-
 const keys = {};
 const mouse = { x: 0, y: 0, down: false };
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+
+// Sharp on high-resolution screens. Game logic stays in 800x600 units.
+const RENDER_SCALE = Math.min(window.devicePixelRatio || 1, 2);
+canvas.style.width = canvas.width + 'px';
+canvas.style.height = canvas.height + 'px';
+canvas.width = canvas.width * RENDER_SCALE;
+canvas.height = canvas.height * RENDER_SCALE;
 
 function initGrid() {
     gameState.grid = [];
@@ -431,8 +383,9 @@ function gameLoop() {
         return;
     }
 
+    ctx.setTransform(RENDER_SCALE, 0, 0, RENDER_SCALE, 0, 0);
     ctx.fillStyle = "#111";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, 800, 600);
 
     drawGrid();
 
@@ -519,20 +472,29 @@ function drawGrid() {
     for (let y = 0; y < GRID_HEIGHT; y++) {
         for (let x = 0; x < GRID_WIDTH; x++) {
             const tile = gameState.grid[y][x];
+            const px = x * TILE_SIZE, py = y * TILE_SIZE;
             let color;
             switch (tile) {
-                case 1: color = '#444'; break; // Wall
-                case 2: color = '#0f0'; break; // Spawn
-                case 3: color = '#666'; break; // Cover
-                case 4: color = '#00f'; break; // Exit
-                default: color = '#222'; break; // Floor
+                case 1: color = '#4b5563'; break; // Wall
+                case 2: color = '#14532d'; break; // Spawn
+                case 3: color = '#6b5a3a'; break; // Cover
+                case 4: color = '#0b3b1e'; break; // Exit
+                default: color = (x + y) % 2 ? '#1d2127' : '#20252c'; break; // Floor
             }
             ctx.fillStyle = color;
-            ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-
-            // Grid lines
-            ctx.strokeStyle = '#333';
-            ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+            if (tile === 1) {
+                // Lit top edge and shaded base give walls some height.
+                ctx.fillStyle = '#6b7687';
+                ctx.fillRect(px, py, TILE_SIZE, 3);
+                ctx.fillStyle = '#2f3641';
+                ctx.fillRect(px, py + TILE_SIZE - 3, TILE_SIZE, 3);
+            } else if (tile === 3) {
+                ctx.strokeStyle = '#3f3421';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(px + 3, py + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+                ctx.lineWidth = 1;
+            }
 
             // Add special marking for exit tiles
             if (tile === 4) {
@@ -629,32 +591,36 @@ function checkObjectives() {
             keys[key] = false;
         }
         setTimeout(() => {
-            alert('MISSION SUCCESS!\n\nAll objectives completed!');
-            // Return to menu instead of reloading the level
-            gameState.playing = false;
-            gameState.editorMode = false;
-            document.getElementById('game-container').style.display = 'none';
-            document.getElementById('home-screen').classList.add('active');
-            AudioSystem.playMusic("menu");
+            PB.dialog({
+                title: 'MISSION SUCCESS',
+                html: '<p>All objectives completed.</p>',
+                buttons: [{ label: 'BACK TO MENU', primary: true, action: backToMenu }],
+            });
         }, VICTORY_DELAY_MS);
     }
 }
 
 // Game over
-function gameOver() {
+function gameOver(reason = 'You have been eliminated.') {
+    // Endless runs end with their own score screen.
+    if (gameState.endlessMode) return;
     gameState.playing = false;
     AudioSystem.playGameOver();
     // Reset all keys to prevent stuck movement
     for (let key in keys) {
         keys[key] = false;
     }
-    alert('MISSION FAILED\n\nYou have been eliminated.');
-    // Return to menu instead of reloading the level
-    gameState.playing = false;
-    gameState.editorMode = false;
-    document.getElementById('game-container').style.display = 'none';
-    document.getElementById('home-screen').classList.add('active');
-    AudioSystem.playMusic("menu");
+    PB.dialog({
+        title: 'MISSION FAILED',
+        html: `<p>${PB.esc(reason)}</p>`,
+        buttons: [
+            { label: 'RETRY', primary: true, action: () => {
+                if (gameState.currentMission && gameState.currentMission.id !== 'custom') loadMission(gameState.currentMission.id);
+                else backToMenu();
+            } },
+            { label: 'BACK TO MENU', action: backToMenu },
+        ],
+    });
 }
 
 // Level Editor
@@ -716,13 +682,13 @@ function saveLevel() {
 
     const json = JSON.stringify(levelData);
     localStorage.setItem('customLevel', json);
-    alert('Level saved!');
+    PB.toast('Level saved.');
 }
 
 function loadLevel() {
     const json = localStorage.getItem('customLevel');
     if (!json) {
-        alert('No saved level found!');
+        PB.toast('No saved level found.');
         return;
     }
 
@@ -736,10 +702,10 @@ function loadLevel() {
         MapLoader.loadMap(levelData);
 
         updateUI();
-        alert('Level loaded!');
+        PB.toast('Level loaded.');
     } catch (error) {
         console.error("Error loading level: ", error);
-        alert("Error loading level!")
+        PB.toast('Error loading level.');
     }
 }
 
@@ -751,7 +717,7 @@ function loadLevelFromFile(file) {
             loadLevelFromData(mapData);
         } catch (error) {
             console.error("Error loading map file:", error);
-            alert("Error loading map file: invalid format.");
+            PB.toast('This map file is not valid.');
         }
     };
     reader.readAsText(file);
@@ -770,26 +736,7 @@ function loadLevelFromData(mapData) {
         // Don't play music here - wait for START GAME
         // AudioSystem.playMusic("gameplay");
     } else {
-        alert("Failed to load map.");
-    }
-}
-
-// Check for admin test mode on page load
-function checkAdminTestMode() {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('adminTest') === 'true') {
-        const mapData = sessionStorage.getItem('adminTestMap');
-        if (mapData) {
-            try {
-                const parsed = JSON.parse(mapData);
-                // Small delay to ensure everything is loaded
-                setTimeout(() => {
-                    loadLevelFromData(parsed);
-                }, 100);
-            } catch (e) {
-                console.error('Failed to load admin test map:', e);
-            }
-        }
+        PB.toast('Failed to load map.');
     }
 }
 

@@ -39,11 +39,11 @@
             <div class="panel-section">
                 <h3>LOADOUT</h3>
                 <div id="primary-weapon" class="weapon-slot active">
-                    <div>PRIMARY: MP5</div>
+                    <div>PRIMARY: Viper SMG</div>
                     <div>AMMO: 30/90</div>
                 </div>
                 <div id="secondary-weapon" class="weapon-slot">
-                    <div>SECONDARY: M1911</div>
+                    <div>SECONDARY: Warden .45</div>
                     <div>AMMO: 7/21</div>
                 </div>
                 <div id="equipment-slot" class="weapon-slot">
@@ -161,25 +161,25 @@
             <h3 style="font-size: 14px; margin-top: 15px;">Primary Weapon:</h3>
             <div class="loadout-grid">
                 <div class="loadout-option" data-type="primary" data-weapon="mp5">
-                    <strong>MP5</strong><br>
+                    <strong>Viper SMG</strong><br>
                     Damage: 20<br>
                     ROF: 800 RPM<br>
                     Mag: 30
                 </div>
                 <div class="loadout-option" data-type="primary" data-weapon="m4a1">
-                    <strong>M4A1</strong><br>
+                    <strong>Falcon Rifle</strong><br>
                     Damage: 30<br>
                     ROF: 700 RPM<br>
                     Mag: 30
                 </div>
                 <div class="loadout-option" data-type="primary" data-weapon="shotgun">
-                    <strong>M870 Shotgun</strong><br>
+                    <strong>Breacher Shotgun</strong><br>
                     Damage: 80<br>
                     ROF: 60 RPM<br>
                     Mag: 8
                 </div>
                 <div class="loadout-option" data-type="primary" data-weapon="sniper">
-                    <strong>M24 Sniper</strong><br>
+                    <strong>Longshot Rifle</strong><br>
                     Damage: 100<br>
                     ROF: 40 RPM<br>
                     Mag: 5
@@ -188,12 +188,12 @@
             <h3 style="font-size: 14px; margin-top: 15px;">Secondary Weapon:</h3>
             <div class="loadout-grid">
                 <div class="loadout-option" data-type="secondary" data-weapon="m1911">
-                    <strong>M1911</strong><br>
+                    <strong>Warden .45</strong><br>
                     Damage: 35<br>
                     Mag: 7
                 </div>
                 <div class="loadout-option" data-type="secondary" data-weapon="glock">
-                    <strong>Glock 17</strong><br>
+                    <strong>Striker 9</strong><br>
                     Damage: 25<br>
                     Mag: 17
                 </div>
@@ -242,11 +242,14 @@
             <h1 style="font-size: 36px; color: #0f0; margin-bottom: 30px;">PIXEL BREACH</h1>
             <h2 style="font-size: 18px; color: #888; margin-bottom: 40px;">Tactical SWAT Operations</h2>
             <button id="btn-campaign" style="font-size: 16px; padding: 15px; margin: 10px;">CAMPAIGN</button>
-            <button id="btn-multiplayer" style="font-size: 16px; padding: 15px; margin: 10px;" disabled title="Multiplayer temporarily disabled">MULTIPLAYER (DISABLED)</button>
-            <button id="btn-community" style="font-size: 16px; padding: 15px; margin: 10px;">COMMUNITY LEVELS</button>
+            <button id="btn-endless" style="font-size: 16px; padding: 15px; margin: 10px;">ENDLESS MODE</button>
+            <button id="btn-shop" style="font-size: 16px; padding: 15px; margin: 10px;">FIELD SHOP</button>
+            <button id="btn-pack" style="font-size: 16px; padding: 15px; margin: 10px;">MISSION PACK</button>
+            <button id="btn-community" style="font-size: 16px; padding: 15px; margin: 10px;">MY LEVELS</button>
             <button id="btn-load-map" style="font-size: 16px; padding: 15px; margin: 10px;">LOAD MAP FILE</button>
             <button id="btn-editor-home" style="font-size: 16px; padding: 15px; margin: 10px;">LEVEL EDITOR</button>
             <input type="file" id="map-file-input" accept=".json" style="display: none;">
+            <p class="pb-dim" style="margin-top: 16px; font-size: 11px;">© Leonhard Yvon · <a href="https://kelvik.at/impressum" target="_blank" rel="noopener">Imprint</a> · <a href="https://kelvik.at/datenschutz" target="_blank" rel="noopener">Privacy</a></p>
         </div>
     </div>
 
@@ -262,8 +265,8 @@
     <!-- Community Levels Screen -->
     <div id="community-screen" class="modal">
         <div class="modal-content">
-            <h2 style="margin-bottom: 20px;">COMMUNITY LEVELS</h2>
-            <p style="margin-bottom: 15px;">Levels created by players using the Level Editor</p>
+            <h2 style="margin-bottom: 20px;">MY LEVELS</h2>
+            <p style="margin-bottom: 15px;">Levels from the editor, saved in this browser or loaded from a file</p>
             <div id="community-list" style="max-height: 400px; overflow-y: auto;"></div>
             <button id="back-to-home-community" style="margin-top: 20px;">BACK TO MENU</button>
         </div>
@@ -289,7 +292,9 @@
     <script src="constants.js"></script>
     <script src="weapons.js"></script>
     <script src="maps-official.js"></script>
+    <script src="maps-pack.js"></script>
     <script src="maps-community.js"></script>
+    <script src="pb-ui.js"></script>
     <script src="classes.js"></script>
     <script src="audio.js"></script>
     <script src="map-loader.js"></script>

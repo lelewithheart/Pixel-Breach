@@ -1,0 +1,33 @@
+# Uploads the game to itch.io. Skipped until BUTLER_API_KEY is set in the repository.
+name: Deploy to itch.io
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and upload
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          if [ -z "$BUTLER_API_KEY" ]; then
+            echo "::notice::BUTLER_API_KEY is not set, skipping the itch.io upload"
+            exit 0
+          fi
+          mkdir dist
+          cp index.html styles.css audio.js classes.js constants.js game-logic.js map-loader.js maps-community.js maps-official.js maps-pack.js pb-ui.js ui.js weapons.js dist/
+          cp -r editor maps dist/
+          curl -sL -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          unzip -o -q butler.zip && chmod +x butler
+          ./butler push dist LennyXD/pixel-breach:html5

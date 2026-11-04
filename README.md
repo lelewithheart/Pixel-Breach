@@ -2,7 +2,7 @@
 
 > **Tactical Top-Down SWAT Shooter**
 >
-> Fast-paced, tactical action with singleplayer, endless, community, and (coming soon) multiplayer modes. Includes a powerful level editor and community map sharing.
+> Fast-paced, tactical action with a campaign, endless mode and a level editor. Share your maps as files.
 
 ---
 
@@ -19,14 +19,8 @@
 3. Random gameplay modifiers and score tracking.
 
 
-### Community Maps & Server
-All community features (map sharing, review, admin) are always connected to the official backend at:
-
-**https://pixel-breach.onrender.com**
-
-You do NOT need to host your own server. All players use the same online community backend for map sharing and review.
-
-If the backend is unavailable, the game will fall back to local-only map storage.
+### Your Levels
+Levels are saved in your browser. To share one, export it as a file in the editor and load it with "LOAD MAP FILE".
 
 ### Multiplayer (Cops vs Criminals)
 **Temporarily disabled while bugs are fixed.**
@@ -44,8 +38,8 @@ If the backend is unavailable, the game will fall back to local-only map storage
   - Hand-crafted official missions with unique objectives and layouts.
 - **Endless:**
   - Survive infinite enemy waves with random modifiers. Compete for high scores.
-- **Community:**
-  - Play, create, and share custom maps. Submit for review and join the community.
+- **My Levels:**
+  - Play levels from the editor or from a map file.
 - **Level Editor:**
   - Full-featured in-browser editor. Design, test, and export your own missions.
 - **Multiplayer:**
@@ -86,19 +80,18 @@ If the backend is unavailable, the game will fall back to local-only map storage
 - **Loadout System:** Choose from a variety of weapons and tactical equipment.
 - **Endless Mode:** Random modifiers, score tracking, and increasing difficulty.
 - **Level Editor:** Drag-and-drop tools, room painter, validation, and map statistics.
-- **Community Maps:** Submit, review, and play user-generated content.
+- **Map Files:** Export your levels and share them as files.
 - **Multiplayer:** (Temporarily disabled) 5v5 Cops vs Criminals, team objectives, and scoring.
 - **Web-based:** No installation required. Pure JavaScript + HTML5 Canvas.
 
 ---
 
-## 🗺️ Level Editor & Community Maps
+## 🗺️ Level Editor
 
 1. Access the editor via the "LEVEL EDITOR" button.
 2. Use tools to place walls, floors, enemies, hostages, doors, and more.
 3. Fill or outline rooms, set map info, and validate your design.
-4. Export maps as JSON or submit for admin review.
-5. Approved maps appear in the "Community Levels" section.
+4. Export maps as JSON to share them.
 
 **Editor Tools:**
 - Wall, Floor, Cover, Door, Locked Door, Spawn, Exit, Enemy, Heavy Enemy, Hostage, Patrol Point, Erase, Room Painter, Select
@@ -122,7 +115,6 @@ Pixel-Breach/
 ├── game-logic.js        # Core game loop
 ├── ui.js                # UI handling
 ├── audio.js             # Sound system
-├── server.js            # Community map server
 ├── maps-official.js     # Official missions
 ├── maps-community.js    # Community map loader
 ├── editor/
@@ -158,10 +150,6 @@ Pixel-Breach/
 - Add new JSON files to `maps/` for official or custom missions.
 - Use the editor to generate valid map files.
 
-### Community Server
-- Run `node server.js` to enable map sharing and admin review.
-- Maps submitted via the editor are stored for review and approval.
-
 ### Multiplayer
 - Temporarily disabled. When enabled, run `node multiplayer/server.js` and connect via the game UI.
 
@@ -180,19 +168,10 @@ Pixel-Breach/
 
 ## 📄 License
 
-Open source. See LICENSE for details.
+All rights reserved. See LICENSE.
 
 ---
 
-## ⚡ Deployment Notes
+## ⚡ Deployment
 
-- **Frontend (Static Site):**
-  - Deploy the contents of the repository (except backend/server files) to GitHub Pages for a static, browser-playable version.
-  - Example: https://lelewithheart.github.io/Pixel-Breach
-
-- **Backend (Community Features):**
-  - The Node.js backend (server.js) is deployed to Render at https://pixel-breach.onrender.com.
-  - All community map sharing, review, and admin features are handled by this backend.
-  - You do NOT need to host your own backend; the game is already connected to the official server.
-
-> **Note:** GitHub Pages cannot run Node.js servers. Multiplayer and community features requiring a backend will only work when the backend is online and accessible.
+The game is a static site. Pushing to `main` updates GitHub Pages and, once configured, itch.io.

@@ -21,6 +21,11 @@ class Player {
             secondary: this.createWeapon(gameState.loadout.secondary)
         };
         this.equipment = { ...EQUIPMENT[gameState.loadout.equipment] };
+        // Permanent Field Shop upgrades.
+        const bonusHealth = (gameState.unlocks.bonusHealth || 0) * 10;
+        this.maxHealth += bonusHealth;
+        this.health += bonusHealth;
+        this.equipment.quantity += gameState.unlocks.bonusEquipment || 0;
         this.canFire = true;
         this.reloading = false;
         this.hostagesRescued = 0;
@@ -774,7 +779,7 @@ class Civilian {
         //Mission failure - Hostage killed
         gameState.playing = false;
         setTimeout(() => {
-            alert("MISSION FAILED\n\nHostage killed! You must protect all civilians.");
+            gameOver("A hostage was killed. You must protect all civilians.");
         }, MISSION_FAILURE_ALERT_DELAY);
     }
 
@@ -1022,12 +1027,6 @@ class Bullet {
                 const dist = Math.hypot(civilian.x - this.x, civilian.y - this.y);
                 if (dist < civilian.size / 2) {
                     civilian.takeDamage(this.damage);
-                    if (civilian.dead) {
-                        gameState.playing = false;
-                        setTimeout(() => {
-                            alert("MISSION FAILED\n\nYou killed a Hostage!");
-                        }, MISSION_FAILURE_ALERT_DELAY);
-                    }
                     this.lifetime = 0;
                     //Particles
                     for (let i = 0; i < 5; i++) {
